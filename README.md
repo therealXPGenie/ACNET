@@ -1,2 +1,5 @@
 # ACNET
-Audio communication network. Turn your sound card into a network adapter. An acoustic internet build for off-grid telecomunication. Acnet is an inner-browser that uses 4-FSK/2FSK and SSTV (PD290) over an audio channel. The first of it's kind and cheap Https-over-sound. Envisioned to help during internet black-outs. Works like a tactical communication network.
+Audio Communication Network
+Turn your sound card into a network adapter. An acoustic internet built for off-grid telecommunication.
+
+Acnet is an in-browser system that uses 4-FSK/2-FSK and SSTV (PD290) over an audio channel. The first of its kind—an inexpensive HTTPS-over-sound solution. Envisioned to help during internet blackouts, it works like a tactical communication network.
