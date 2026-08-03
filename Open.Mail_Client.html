@@ -1,0 +1,3254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Open.Mail Fixed Edition: cache-buster removed, Cache-Control header cleaned,
+     all robustness features preserved (pad===3 check, prefix stripping, CRC handling,
+     contact cache, credential fallback, ACNET bridge). Compatible with ACNET FIX43+.
+     Version: 2026.07.15-filebin-rolling-recovery -->
+<title>Open.Mail — Filebin Rolling Recovery</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#020804;--bg2:#050f07;--bg3:#081208;--bg4:#0a160a;
+  --g0:#00ff66;--g1:#00cc44;--g2:#009933;--g3:#005522;--g4:#002a11;
+  --amber:#ffaa00;--red:#ff3333;--blue:#33aaff;
+  --font:'Fira Code','Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--g1);height:100vh;overflow:hidden;font-size:13px;line-height:1.5}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--g4)}
+a{color:var(--amber);text-decoration:none}a:hover{color:var(--g0)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.cur{animation:blink 1s infinite;color:var(--g0)}
+
+/* -- INPUTS -- */
+input,textarea{font-family:var(--font);font-size:13px;background:transparent;color:var(--g1);outline:none;width:100%}
+input[type=text],input[type=password]{border:none;border-bottom:1px solid var(--g4);padding:8px 0;transition:border-color .2s}
+input[type=text]:focus,input[type=password]:focus{border-bottom-color:var(--g0);color:var(--g0)}
+input::placeholder,textarea::placeholder{color:var(--g4)}
+textarea{border:1px solid var(--g3);padding:10px;resize:vertical;line-height:1.7;border-radius:2px}
+textarea:focus{border-color:var(--g1);outline:none}
+
+/* -- BUTTONS -- */
+.btn{font-family:var(--font);font-size:11px;background:var(--g4);border:1px solid var(--g2);color:var(--g0);
+  padding:9px 20px;cursor:pointer;text-transform:uppercase;letter-spacing:1px;
+  transition:all .15s;border-radius:0;width:100%}
+.btn:hover{background:var(--g3);border-color:var(--g0)}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.35;cursor:default;pointer-events:none}
+.btn-secondary{border-color:var(--blue);color:var(--blue);background:rgba(51,170,255,.08)}
+.btn-secondary:hover{background:rgba(51,170,255,.15);border-color:var(--blue)}
+.btn-danger{border-color:var(--red);color:var(--red);background:rgba(255,51,51,.08)}
+.btn-danger:hover{background:rgba(255,51,51,.15);border-color:var(--red)}
+.btn-ghost{border-color:var(--g3);color:var(--g3);background:transparent}
+.btn-ghost:hover{border-color:var(--g2);color:var(--g2)}
+
+/* -- APP SHELL -- */
+#app{height:100vh;display:flex;flex-direction:column}
+
+/* -- LOGIN -- */
+#login-view{display:flex;align-items:center;justify-content:center;height:100%;background:var(--bg);flex-direction:column;gap:0;animation:fadeIn .4s ease}
+.login-box{width:100%;max-width:420px;border:1px solid var(--g4);background:var(--bg2);margin:20px}
+.login-box-head{padding:22px 26px;border-bottom:1px solid var(--g4);background:var(--bg3)}
+.login-box-head h1{font-size:20px;font-weight:500;color:var(--g0);letter-spacing:3px;display:flex;align-items:center;gap:10px}
+.login-box-head .sub{color:var(--g3);font-size:10px;margin-top:5px}
+.privacy-badge{font-size:10px;padding:2px 8px;border:1px solid rgba(0,255,102,.3);color:var(--g2);letter-spacing:.5px}
+.login-box-body{padding:24px 26px;display:flex;flex-direction:column;gap:0}
+.input-group{margin-bottom:20px}
+.input-group label{display:block;margin-bottom:6px;font-size:10px;font-weight:500;color:var(--g3);text-transform:uppercase;letter-spacing:1px}
+.login-box-body .btn{margin-top:4px}
+.note{font-size:11px;color:var(--g4);margin-top:16px;text-align:center;line-height:1.7}
+.note a{color:var(--g2)}.note a:hover{color:var(--g0)}
+.login-box-foot{padding:10px 26px;border-top:1px solid var(--g4);color:var(--g4);font-size:10px;text-align:center;line-height:1.7}
+
+/* -- LOGIN WARNING (collapsible) -- */
+.warn-box{width:100%;max-width:420px;border:1px solid rgba(255,170,0,.4);background:rgba(255,170,0,.05);
+  margin:0 20px 12px 20px}
+.warn-head{padding:9px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  cursor:pointer;user-select:none;background:rgba(255,170,0,.08);transition:background .15s;
+  font-size:11px;font-weight:600;color:var(--amber);letter-spacing:1px;text-transform:uppercase}
+.warn-head:hover{background:rgba(255,170,0,.13)}
+.warn-head .warn-title{display:flex;align-items:center;gap:8px}
+.warn-head .warn-arr{font-size:10px;color:var(--amber);transition:transform .2s;display:inline-block}
+.warn-box.open .warn-head .warn-arr{transform:rotate(180deg)}
+.warn-body{max-height:0;overflow:hidden;transition:max-height .25s ease;border-top:1px solid transparent}
+.warn-box.open .warn-body{max-height:320px;border-top-color:rgba(255,170,0,.25)}
+.warn-list{padding:10px 14px 12px 14px;margin:0;list-style:none;font-size:11.5px;line-height:1.55;color:#e8d9a8}
+.warn-list li{padding:2px 0 2px 14px;position:relative}
+.warn-list li::before{content:'\25B8';color:var(--amber);font-size:9px;position:absolute;left:0;top:5px}
+.warn-list strong{color:var(--amber);font-weight:600}
+
+/* -- MAIL VIEW -- */
+#mail-view{display:none;flex-direction:row;flex:1;min-height:0}
+
+/* -- SIDEBAR -- */
+.sidebar{width:210px;background:var(--bg2);border-right:1px solid var(--g4);display:flex;flex-direction:column;flex-shrink:0}
+.sidebar-header{padding:16px 20px;border-bottom:1px solid var(--g4)}
+.sidebar-header h2{font-size:14px;font-weight:500;color:var(--g0);letter-spacing:2px}
+.addr{font-size:11px;color:var(--g2);margin-top:6px;word-break:break-all;line-height:1.5}
+.e2e-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border:1px solid rgba(0,255,102,.3);
+  font-size:9px;font-weight:600;color:var(--g2);text-transform:uppercase;letter-spacing:.5px;margin-top:6px}
+.addr-btn{margin-top:8px;font-size:10px;padding:5px 10px;border:1px solid var(--g4);color:var(--g3);
+  background:transparent;cursor:pointer;width:100%;font-family:var(--font);text-align:left;transition:all .15s}
+.addr-btn:hover{border-color:var(--g2);color:var(--g1)}
+.nav-btn{display:flex;align-items:center;gap:10px;width:100%;padding:10px 20px;background:none;border:none;
+  border-left:2px solid transparent;color:var(--g3);text-align:left;font-size:11px;cursor:pointer;
+  transition:all .1s;font-family:var(--font);text-transform:uppercase;letter-spacing:.5px;font-weight:500}
+.nav-btn:hover{background:var(--bg3);color:var(--g1);border-left-color:var(--g3)}
+.nav-btn.active{background:var(--bg3);color:var(--g0);border-left-color:var(--g0)}
+.sidebar-footer{margin-top:auto;padding:12px;border-top:1px solid var(--g4);display:flex;flex-direction:column;gap:6px}
+.sidebar-footer .btn{font-size:10px;padding:6px 10px}
+
+/* -- MAIN -- */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.topbar{height:44px;background:var(--bg3);border-bottom:1px solid var(--g4);display:flex;align-items:center;
+  justify-content:space-between;padding:0 20px;flex-shrink:0}
+.topbar h3{font-size:12px;color:var(--g2);text-transform:uppercase;letter-spacing:1.5px;font-weight:500}
+.actions{display:flex;gap:6px}
+.actions button{padding:5px 12px;border:1px solid var(--g4);background:transparent;border-radius:0;
+  cursor:pointer;font-size:10px;font-weight:500;color:var(--g3);transition:all .15s;
+  font-family:var(--font);text-transform:uppercase;letter-spacing:.5px}
+.actions button:hover{background:var(--g4);border-color:var(--g2);color:var(--g1)}
+.content{flex:1;overflow-y:auto;padding:16px}
+
+/* -- EMAIL LIST -- */
+.email-list{background:var(--bg2);border:1px solid var(--g4);overflow:hidden}
+.email-item{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--g4);
+  cursor:pointer;transition:background .1s;gap:12px}
+.email-item:last-child{border-bottom:none}
+.email-item:hover{background:var(--bg3)}
+.email-item.unread{border-left:2px solid var(--g1)}
+.email-item.read{border-left:2px solid transparent}
+.email-item.read .email-sender,.email-item.read .email-subject{color:var(--g3)}
+.email-sender{width:160px;font-weight:500;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--g0);flex-shrink:0}
+.email-subject{flex:1;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--g1)}
+.email-snippet{color:var(--g3);font-size:11px;width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+.email-date{width:90px;text-align:right;font-size:10px;color:var(--g4);white-space:nowrap;flex-shrink:0}
+.expires{color:var(--amber);font-size:10px;font-weight:500;margin-left:4px}
+.expires.danger{color:var(--red)}
+.email-actions{display:flex;gap:4px;flex-shrink:0}
+.email-actions button{background:none;border:1px solid transparent;color:var(--g4);cursor:pointer;
+  font-size:10px;padding:3px 7px;font-family:var(--font);transition:all .15s}
+.email-actions button:hover{background:rgba(255,51,51,.1);border-color:var(--red);color:var(--red)}
+
+.empty{text-align:center;padding:60px 20px;color:var(--g4)}
+.empty h4{margin-bottom:10px;color:var(--g3);font-size:14px;font-weight:400}
+.empty p{font-size:12px;line-height:1.8;max-width:400px;margin:0 auto}
+
+/* -- MODALS -- */
+.modal-overlay{position:fixed;inset:0;background:rgba(2,8,4,.85);display:none;
+  align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(4px)}
+.modal-overlay.active{display:flex}
+.modal{background:var(--bg2);width:92%;max-width:820px;max-height:90vh;border:1px solid var(--g3);
+  display:flex;flex-direction:column;overflow:hidden;animation:fadeIn .2s ease}
+.modal-header{padding:16px 22px;border-bottom:1px solid var(--g4);display:flex;justify-content:space-between;align-items:center;gap:16px;background:var(--bg3)}
+.modal-header h3{font-size:14px;color:var(--g0);word-break:break-word;font-weight:500;line-height:1.4}
+.modal-close{background:none;border:none;font-size:20px;color:var(--g3);cursor:pointer;line-height:1;padding:2px 6px;font-family:var(--font)}
+.modal-close:hover{color:var(--red)}
+.modal-meta{padding:10px 22px;background:var(--bg);border-bottom:1px solid var(--g4);font-size:11px;color:var(--g3);display:flex;gap:20px;flex-wrap:wrap}
+.modal-meta strong{color:var(--g1)}
+.modal-body{flex:1;overflow-y:auto;padding:20px 22px;line-height:1.7;font-size:13px;color:var(--g2);background:var(--bg)}
+.modal-body pre{white-space:pre-wrap;word-wrap:break-word;font-family:var(--font);font-size:13px;
+  background:var(--bg3);padding:14px;border:1px solid var(--g4);color:var(--g1);line-height:1.7}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--g4);display:flex;justify-content:flex-end;gap:8px;background:var(--bg3)}
+.modal-footer .btn{width:auto;padding:7px 18px;font-size:10px}
+
+/* -- COMPOSE -- */
+.compose-field{margin-bottom:14px}
+.compose-field label{display:block;font-size:10px;font-weight:500;color:var(--g3);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
+.compose-field input{padding:8px 0;border:none;border-bottom:1px solid var(--g4);color:var(--g1)}
+.compose-field input:focus{border-bottom-color:var(--g0);color:var(--g0);outline:none}
+#compose-body{width:100%;min-height:220px;padding:12px;border:1px solid var(--g4);
+  font-family:var(--font);font-size:13px;resize:vertical;line-height:1.6;background:var(--bg);color:var(--g1)}
+#compose-body:focus{outline:none;border-color:var(--g2)}
+.compose-counter{text-align:right;font-size:10px;color:var(--g4);margin-top:5px;font-weight:500}
+.compose-counter.warn{color:var(--amber)}.compose-counter.danger{color:var(--red)}
+.compose-file{margin-top:10px;padding:12px;border:1px dashed var(--g4);text-align:center;
+  cursor:pointer;transition:all .15s;background:transparent}
+.compose-file:hover{border-color:var(--g2);background:rgba(0,255,102,.03)}
+.compose-file.has-file{border-color:var(--g1);border-style:solid}
+.compose-file input[type=file]{display:none}
+.compose-file-label{font-size:11px;color:var(--g3)}
+.compose-file-name{font-size:11px;color:var(--g1);margin-top:3px}
+.attachments-list{margin-top:12px}
+.att-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg3);
+  border:1px solid var(--g4);margin-bottom:4px;font-size:11px;color:var(--g1)}
+.att-item button{font-size:9px;padding:2px 8px;background:transparent;border:1px solid var(--g4);
+  color:var(--g3);cursor:pointer;font-family:var(--font);text-transform:uppercase;letter-spacing:.5px}
+.att-item button:hover{border-color:var(--red);color:var(--red)}
+.attach-link{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg3);
+  border:1px solid var(--g3);color:var(--g1);font-size:11px;cursor:pointer;transition:all .15s}
+.attach-link:hover{background:var(--bg4);border-color:var(--g1)}
+
+/* -- PASSWORD STRENGTH -- */
+.pw-strength{margin-top:8px}
+.pw-bars{display:flex;gap:3px;margin-bottom:5px}
+.pw-seg{flex:1;height:3px;background:var(--g4);transition:background .25s}
+.pw-seg.lit-1{background:var(--red)}
+.pw-seg.lit-2{background:#cc5500}
+.pw-seg.lit-3{background:var(--amber)}
+.pw-seg.lit-4{background:var(--g2)}
+.pw-seg.lit-5{background:var(--g0)}
+.pw-row{display:flex;justify-content:space-between;font-size:10px}
+.pw-label{color:var(--g4);transition:color .25s}
+.pw-hint{color:var(--g4);text-align:right}
+
+/* -- USER SCAN MODAL -- */
+#scan-modal .modal{max-width:620px}
+.scan-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--g4);font-size:12px}
+.scan-row:last-child{border-bottom:none}
+.scan-idx{color:var(--g4);min-width:24px;font-size:10px}
+.scan-user{color:var(--g0);font-weight:500;min-width:130px}
+.scan-ts{color:var(--g3);font-size:10px;min-width:110px}
+.scan-key{color:var(--g4);font-size:9px;font-family:var(--font);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.scan-empty{padding:24px;text-align:center;color:var(--g4);font-size:12px}
+
+/* -- TOAST -- */
+.toast{position:fixed;bottom:52px;right:18px;background:var(--bg3);color:var(--g1);
+  padding:10px 18px;font-size:11px;box-shadow:0 4px 12px rgba(0,0,0,.4);
+  transform:translateY(100px);transition:transform .3s cubic-bezier(.175,.885,.32,1.275);
+  z-index:300;max-width:320px;line-height:1.5;border:1px solid var(--g4)}
+.toast.show{transform:translateY(0)}
+.toast.error{background:#140404;border-color:var(--red);color:#ff9999}
+.toast.success{background:#021408;border-color:var(--g1);color:var(--g0)}
+.toast.warn{background:#140a00;border-color:var(--amber);color:#ffcc66}
+
+/* -- DEBUG BAR -- */
+#dbgbar{background:var(--bg3);border-top:1px solid var(--g4);flex-shrink:0;overflow:hidden;height:26px;transition:height .2s}
+#dbgbar.open{height:140px}
+#dbg-head{display:flex;align-items:center;gap:10px;padding:5px 14px;cursor:pointer;user-select:none;border-bottom:1px solid var(--g4)}
+#dbg-label{font-size:10px;color:var(--g3);flex:1;text-transform:uppercase;letter-spacing:.5px}
+#dbg-arr{font-size:9px;color:var(--g4)}
+#dbg-entries{height:114px;overflow-y:auto;padding:4px 14px;display:flex;flex-direction:column;gap:2px;font-size:10px}
+.de{display:flex;gap:10px;line-height:1.6}
+.de-ts{color:var(--g4);min-width:56px;flex-shrink:0}
+.de-ok{color:var(--g1)}.de-err2{color:var(--red)}.de-info{color:var(--g3)}
+
+/* -- RESPONSIVE -- */
+@media(max-width:768px){
+  .sidebar{width:60px}
+  .sidebar-header h2,.nav-btn span:last-child,.addr,.addr-btn,.e2e-pill{display:none}
+  .nav-btn{justify-content:center;padding:14px 0;font-size:16px}
+  .email-snippet,.email-date{display:none}
+  .email-sender{width:100px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ========================= LOGIN ========================= -->
+<div id="login-view">
+  <div class="warn-box open" id="login-warn">
+    <div class="warn-head" onclick="document.getElementById('login-warn').classList.toggle('open')">
+      <span class="warn-title">&#9888;&#65039; Important &middot; Read Before Use</span>
+      <span class="warn-arr">&#9662;</span>
+    </div>
+    <div class="warn-body">
+      <ul class="warn-list">
+        <li>This is an <strong>experimental prototype</strong>, not a secure email service.</li>
+        <li>Anyone can <strong>impersonate any sender</strong> &ndash; the &ldquo;From&rdquo; address is NOT verified.</li>
+        <li>Accounts expire at <strong>00:00 UTC every day</strong> and must be recreated.</li>
+        <li>All messages disappear from the server after <strong>~6 days</strong> (filebin retention).</li>
+        <li>Your private key is stored <strong>publicly</strong> (encrypted by password) &ndash; use a strong, unique password.</li>
+        <li>The public key registry is <strong>untrusted</strong> &ndash; no proof of ownership.</li>
+        <li>Do <strong>NOT</strong> share sensitive information.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="login-box">
+    <div class="login-box-head">
+      <h1>&#128274; Open.Mail<span class="cur">_</span></h1>
+      <div class="sub">end-to-end encrypted &middot; <span class="privacy-badge">X25519 + AES-GCM</span></div>
+    </div>
+    <div class="login-box-body">
+      <div id="login-mode">
+        <div class="input-group">
+          <label>Username</label>
+          <input type="text" id="login-user" placeholder="your_username" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="input-group">
+          <label>Password</label>
+          <input type="password" id="login-pass" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;">
+        </div>
+        <button type="button" type="button" class="btn" onclick="doLogin()">&#9654; Log In</button>
+        <p class="note"><a href="#" onclick="toggleAuthMode();return false">Create an account &rarr;</a></p>
+      </div>
+      <div id="signup-mode" style="display:none">
+        <div class="input-group">
+          <label>Username</label>
+          <input type="text" id="signup-user" placeholder="your_username" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="input-group">
+          <label>Password</label>
+          <input type="password" id="signup-pass" placeholder="min 6 characters" oninput="updatePwStrength(this.value)">
+          <div class="pw-strength" id="pw-strength">
+            <div class="pw-bars">
+              <div class="pw-seg" id="ps1"></div>
+              <div class="pw-seg" id="ps2"></div>
+              <div class="pw-seg" id="ps3"></div>
+              <div class="pw-seg" id="ps4"></div>
+              <div class="pw-seg" id="ps5"></div>
+            </div>
+            <div class="pw-row">
+              <span class="pw-label" id="pw-label">enter a password</span>
+              <span class="pw-hint" id="pw-hint"></span>
+            </div>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Confirm Password</label>
+          <input type="password" id="signup-confirm" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;">
+        </div>
+        <button type="button" type="button" class="btn" onclick="doSignup()">&#9654; Create Account</button>
+        <p class="note"><a href="#" onclick="toggleAuthMode();return false">&larr; Already have an account</a></p>
+      </div>
+      <p class="note">Private key never leaves your device.</p>
+    </div>
+    <div class="login-box-foot">rolling Filebin bins &middot; verified uploads &middot; ~6 day message retention</div>
+  </div>
+</div>
+
+<!-- ========================= MAIL VIEW ========================= -->
+<div id="mail-view">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>Open.Mail</h2>
+      <div class="addr" id="account-addr">&hellip;</div>
+      <div class="e2e-pill">&#128274; E2E</div>
+      <button type="button" class="addr-btn" onclick="copyAddr()">Copy Address</button>
+    </div>
+    <button type="button" class="nav-btn active" id="nav-inbox" onclick="showInbox()"><span>&#128231;</span> <span>Inbox</span></button>
+    <button type="button" class="nav-btn" id="nav-compose" onclick="openCompose()"><span>&#9998;</span> <span>Compose</span></button>
+    <button type="button" class="nav-btn" id="nav-sent" onclick="showSent()"><span>&#8594;</span> <span>Sent</span></button>
+    <div class="sidebar-footer">
+      <button type="button" class="btn btn-ghost" onclick="openScanUsers()">&#128270; Scan Users</button>
+      <button type="button" class="btn btn-ghost" onclick="doLock()">&#128274; Lock</button>
+      <button type="button" class="btn btn-ghost" onclick="clearCache()">Clear Cache</button>
+      <button type="button" class="btn btn-danger" onclick="doLogout()">Logout</button>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <h3 id="page-title">Inbox <span id="queue-badge" style="font-size:10px;color:var(--amber)"></span></h3>
+      <div class="actions">
+        <button type="button" onclick="refreshInbox()">Refresh</button>
+        <button type="button" onclick="openCompose()">Compose</button>
+      </div>
+    </div>
+    <div class="content" id="inbox-content">
+      <div class="empty"><h4>Loading inbox&hellip;</h4></div>
+    </div>
+  </main>
+</div>
+
+<!-- ========================= SCAN USERS MODAL ========================= -->
+<div class="modal-overlay" id="scan-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>&#128270; Registry Scan &mdash; <span id="scan-title" style="color:var(--g3);font-size:12px">openmail registry</span></h3>
+      <button type="button" class="modal-close" onclick="document.getElementById('scan-modal').classList.remove('active')">&times;</button>
+    </div>
+    <div class="modal-meta" id="scan-meta">
+      <div>fetching registry&hellip;</div>
+    </div>
+    <div class="modal-body" id="scan-body" style="padding:0 22px"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('scan-modal').classList.remove('active')">Close</button>
+      <button type="button" class="btn btn-secondary" onclick="openComposeToScanned()">&#9998; Compose to selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= DEBUG BAR ========================= -->
+<div id="dbgbar">
+  <div id="dbg-head" onclick="toggleDbg()">
+    <span id="dbg-label">API log &middot; 0 calls</span>
+    <span id="dbg-arr">&#9652;</span>
+  </div>
+  <div id="dbg-entries"></div>
+</div>
+
+<!-- ========================= READER MODAL ========================= -->
+<div class="modal-overlay" id="reader-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="read-subject">Subject</h3>
+      <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-meta">
+      <div><strong>From:</strong> <span id="read-from"></span></div>
+      <div><strong>To:</strong> <span id="read-to"></span></div>
+      <div><strong>Date:</strong> <span id="read-date"></span></div>
+      <div><strong>Enc:</strong> <span style="color:var(--g1)">&#128274; X25519+AES-GCM</span></div>
+    </div>
+    <div class="modal-body" id="read-body">&hellip;</div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeModal()">Close</button>
+      <button type="button" class="btn btn-secondary" onclick="replyToCurrent()">&#8617; Reply</button>
+      <button type="button" class="btn btn-danger" onclick="deleteCurrent()">&#10005; Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= COMPOSE MODAL ========================= -->
+<div class="modal-overlay" id="compose-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Compose &nbsp;<span style="font-size:10px;border:1px solid rgba(0,255,102,.3);color:var(--g2);padding:2px 8px">&#128274; E2E ENCRYPTED</span></h3>
+      <button type="button" class="modal-close" onclick="closeCompose()">&times;</button>
+    </div>
+    <div style="padding:16px 22px 0">
+      <div class="compose-field">
+        <label>To (Username)</label>
+        <input type="text" id="compose-to" placeholder="recipient_username">
+      </div>
+      <div class="compose-field">
+        <label>Subject</label>
+        <input type="text" id="compose-subject" placeholder="Subject">
+      </div>
+    </div>
+    <div class="modal-body" style="padding-top:8px">
+      <textarea id="compose-body" placeholder="Write your message&hellip; (encrypted with recipient's public key)"></textarea>
+      <div class="compose-counter" id="compose-counter">Calculating&hellip;</div>
+      <div class="compose-file" id="compose-file-area" onclick="document.getElementById('compose-file').click()">
+        <input type="file" id="compose-file" multiple onchange="onFileSelected(this)">
+        <div class="compose-file-label" id="compose-file-label">+ Attach files (encrypted, max 4 at once)</div>
+        <div class="compose-file-name" id="compose-file-name"></div>
+      </div>
+      <div class="attachments-list" id="compose-attachments"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeCompose()">Discard</button>
+      <button type="button" class="btn" onclick="sendEmail()">&#9654; Send Encrypted</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Notification</div>
+
+<script>
+/* ============================================================
+   DEBUG LOG
+   ============================================================ */
+let _dbgN = 0, _dbgOpen = false;
+function dbg(msg, type) {
+  _dbgN++;
+  const ts  = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const cls = type==='ok' ? 'de-ok' : type==='err' ? 'de-err2' : 'de-info';
+  const el  = document.getElementById('dbg-entries');
+  if (el) {
+    const row = document.createElement('div');
+    row.className = 'de';
+    row.innerHTML = `<span class="de-ts">${ts}</span><span class="${cls}">${String(msg).replace(/</g,'&lt;')}</span>`;
+    el.appendChild(row);
+    el.scrollTop = el.scrollHeight;
+  }
+  const lbl = document.getElementById('dbg-label');
+  if (lbl) lbl.textContent = `API log \u00b7 ${_dbgN} call${_dbgN!==1?'s':''}`;
+  if (type === 'err' && !_dbgOpen) toggleDbg();
+  console[type==='err'?'error':'log']('[OpenMail]', msg);
+}
+function toggleDbg() {
+  _dbgOpen = !_dbgOpen;
+  document.getElementById('dbgbar').classList.toggle('open', _dbgOpen);
+  document.getElementById('dbg-arr').textContent = _dbgOpen ? '\u25be' : '\u25b4';
+}
+
+/* ============================================================
+   CONSTANTS
+   ============================================================ */
+const SRV = 'https://filebin.net';
+
+/* Filebin deletes uploads after roughly six days, so the literal `openmail`
+   bin cannot be permanent infrastructure. `openmail` is now a logical alias:
+   writes go to today's deterministic rolling bin, while reads search today's
+   bin, the previous seven UTC-day bins, and the old legacy bin. All clients
+   can independently calculate the same bin names without a central pointer. */
+const OPENMAIL_LOGICAL_BIN = 'openmail';
+const OPENMAIL_ROLLING_PREFIX = 'omr1';
+const OPENMAIL_NETWORK_SEED = 'openmail-fixed-rolling-2026';
+const OPENMAIL_LOOKBACK_DAYS = 7;
+const OPENMAIL_DAY_MS = 24 * 60 * 60 * 1000;
+function openMailFnv1a(text) {
+  let h=0x811c9dc5;
+  text=String(text||'');
+  for(let i=0;i<text.length;i++) h=Math.imul(h^text.charCodeAt(i),0x01000193)>>>0;
+  return h.toString(36);
+}
+function openMailBinForDayOffset(offset, nowMs) {
+  const day = Math.floor((Number(nowMs || Date.now())) / OPENMAIL_DAY_MS) + Number(offset || 0);
+  // Opaque deterministic name: all compatible clients calculate it, while it
+  // is less likely to be casually discovered and locked than `openmail-<day>`.
+  return OPENMAIL_ROLLING_PREFIX + '-' + openMailFnv1a(OPENMAIL_NETWORK_SEED+':'+day) + openMailFnv1a(day+':'+OPENMAIL_NETWORK_SEED);
+}
+function openMailActiveBin() { return openMailBinForDayOffset(0); }
+function openMailCandidateBins(includeLegacy) {
+  const out = [];
+  for (let i = 0; i <= OPENMAIL_LOOKBACK_DAYS; i++) out.push(openMailBinForDayOffset(-i));
+  if (includeLegacy !== false) out.push(OPENMAIL_LOGICAL_BIN);
+  return Array.from(new Set(out));
+}
+function openMailResolveWriteBin(binId) {
+  return !binId || binId === OPENMAIL_LOGICAL_BIN ? openMailActiveBin() : String(binId);
+}
+function openMailResolveReadBins(binId) {
+  return !binId || binId === OPENMAIL_LOGICAL_BIN ? openMailCandidateBins(true) : [String(binId)];
+}
+
+const REGISTRY_BIN = OPENMAIL_LOGICAL_BIN; // logical alias; reads span rolling bins
+const FBN_MAX_NAME = 120;
+
+/* ------------------------------------------------------------
+   CORS PROXY CHAIN
+   Single source of truth for read-through proxies. Ordered by
+   reliability; if one provider blocks or dies, the next is tried.
+   Each entry wraps a target URL into a proxied request URL.
+   ------------------------------------------------------------ */
+const CORS_PROXIES = [
+  // Ordered by observed reliability. 'direct' returns filebin's JSON when CORS
+  // permits; the rest are fallbacks that often return filebin's HTML page,
+  // which parseMailboxListingText is hardened to scrape.
+  { label:'direct',     wrap:(u)=>u, json:true },
+  { label:'codetabs',   wrap:(u)=>'https://api.codetabs.com/v1/proxy/?quest='+encodeURIComponent(u) },
+  { label:'allorigins', wrap:(u)=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u) },
+  { label:'jina',       wrap:(u)=>'https://r.jina.ai/'+u }
+  // Removed: corsproxy.io (now 403s without a paid API key) and
+  // thingproxy.freeboard.io (unreachable / NetworkError).
+];
+
+/* Fetch `targetUrl` through the proxy chain. Returns the first
+   Response with a usable status (ok, or 404 so callers can treat
+   "reached server, no such file" distinctly). Returns null only if
+   every transport threw a network error. */
+async function proxiedFetch(targetUrl, { tag='GET', accept=null } = {}) {
+  let sawServer = false;
+  for (const p of CORS_PROXIES) {
+    const opts = { method:'GET', credentials:'omit', mode:'cors' };
+    // Always ask filebin for JSON; harmless for proxies that ignore it.
+    if (accept) opts.headers = { 'Accept':accept };
+    try {
+      const res = await fetchWithTimeout(p.wrap(targetUrl), opts, 25000);
+      dbg(`  ${tag} ${p.label} \u2192 ${res.status}`, res.ok ? 'ok' : res.status===404 ? 'info' : 'err');
+      if (res.status === 404) { sawServer = true; continue; }
+      if (!res.ok) { sawServer = true; continue; }
+      return res;
+    } catch(e) {
+      dbg(`  ${tag} ${p.label} error: ${e.message}`, 'err');
+    }
+  }
+  if (!sawServer) dbg(`  ${tag}: all transports failed (network/blocked)`, 'err');
+  return null;
+}
+const SESSION_TIMEOUT_MS = 5 * 60 * 1000;
+const SERVER_RETENTION_DAYS = 6;
+const REFRESH_INTERVAL_MS = 30000;
+const CHUNK_RAW_BUDGET = 75;
+
+/* Daily-account policy shared with ACNET. Credentials are valid only for the
+   UTC calendar day on which they were created. At 00:00 UTC the account must
+   be recreated, which intentionally generates a new X25519 identity. */
+const ACCOUNT_DAY_MS = 24 * 60 * 60 * 1000;
+function accountDayKey(tsMs) { return Math.floor(Number(tsMs || 0) / ACCOUNT_DAY_MS); }
+function currentAccountDay(nowMs) { return accountDayKey(nowMs === undefined ? Date.now() : nowMs); }
+function credentialAccountDay(cred) {
+  if (cred && Number.isFinite(Number(cred.accountDay))) return Number(cred.accountDay);
+  return accountDayKey(cred && cred.createdAt);
+}
+function isCredentialCurrentDay(cred, nowMs) { return !!cred && credentialAccountDay(cred) === currentAccountDay(nowMs); }
+function isTimestampCurrentDay(tsMs, nowMs) { return accountDayKey(tsMs) === currentAccountDay(nowMs); }
+function msUntilNextUtcDay(nowMs) {
+  const now = Number(nowMs === undefined ? Date.now() : nowMs);
+  return Math.max(1000, ((currentAccountDay(now) + 1) * ACCOUNT_DAY_MS) - now + 250);
+}
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let username = null, currentUser = null;
+let myPrivateKey = null, myPublicKeyB64 = null;
+let sessionAesKey = null, sessionTimeout = null, refreshTimer = null, dailyExpiryTimeout = null;
+let emails = [], sentMails = [];
+let currentEmailIdx = null, currentFolder = 'inbox';
+let selectedAttachments = [];
+let currentAttachments = []; // parsed attachments for the currently open email
+
+/* ============================================================
+   ENCODING HELPERS
+   ============================================================ */
+const TE = new TextEncoder();
+const TD = new TextDecoder();
+const delay = ms => new Promise(r => setTimeout(r, ms));
+function strToBytes(s) { return TE.encode(s); }
+function bytesToStr(b) { return TD.decode(b); }
+function bytesToB64Url(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+function b64UrlToBytes(s) {
+  const p = s.replace(/-/g,'+').replace(/_/g,'/');
+  const pad = (4 - p.length % 4) % 4;
+  let decoded;
+  let effectivePad = pad;
+  if (pad === 3) {
+    decoded = atob(p + 'A==');
+    effectivePad = 2;
+  } else {
+    decoded = atob(p + '='.repeat(pad));
+  }
+  const meaningful = Math.floor(p.length / 4) * 3 + (effectivePad === 0 ? 0 : 3 - effectivePad);
+  const u = new Uint8Array(meaningful);
+  for (let i = 0; i < meaningful; i++) u[i] = decoded.charCodeAt(i);
+  return u;
+}
+function strToB64Url(s) { return bytesToB64Url(strToBytes(s)); }
+function b64UrlToStr(s) { try { return bytesToStr(b64UrlToBytes(s)); } catch(e) { return null; } }
+function concatBytes(...arrs) {
+  const total = arrs.reduce((a,b) => a+b.length, 0);
+  const out = new Uint8Array(total); let off = 0;
+  for (const a of arrs) { out.set(a, off); off += a.length; }
+  return out;
+}
+
+/* ============================================================
+   CRYPTO
+   ============================================================ */
+
+/* ---- fetch with timeout (prevents indefinite hangs) ---- */
+function fetchWithTimeout(url, opts, timeoutMs) {
+  timeoutMs = timeoutMs || 25000;
+  var ctrl = new AbortController();
+  var t = setTimeout(function(){ ctrl.abort(); }, timeoutMs);
+  opts = opts || {};
+  opts.signal = ctrl.signal;
+  return fetch(url, opts).finally(function(){ clearTimeout(t); });
+}
+
+const CRYPTO = {
+  async sha256(text) {
+    const buf = await crypto.subtle.digest('SHA-256', strToBytes(text));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  },
+  async deriveAesFromPassword(password, salt) {
+    const km = await crypto.subtle.importKey('raw', strToBytes(password), {name:'PBKDF2'}, false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      {name:'PBKDF2',salt:strToBytes(salt),iterations:150000,hash:'SHA-256'},
+      km, {name:'AES-GCM',length:256}, false, ['encrypt','decrypt']
+    );
+  },
+  async encryptJson(obj, key) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({name:'AES-GCM',iv}, key, strToBytes(JSON.stringify(obj)));
+    return JSON.stringify({iv:Array.from(iv), d:Array.from(new Uint8Array(ct))});
+  },
+  async decryptJson(blob, key) {
+    const o = JSON.parse(blob);
+    const pt = await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(o.iv)}, key, new Uint8Array(o.d));
+    return JSON.parse(bytesToStr(new Uint8Array(pt)));
+  },
+  randomSalt() {
+    return Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,'0')).join('');
+  },
+  async generateX25519Keypair() { return crypto.subtle.generateKey({name:'X25519'}, true, ['deriveBits']); },
+  async exportPublicRaw(pk)  { return new Uint8Array(await crypto.subtle.exportKey('raw', pk)); },
+  async exportPrivateJwk(pk) { return crypto.subtle.exportKey('jwk', pk); },
+  async importPublicRaw(rb)  { return crypto.subtle.importKey('raw', rb, {name:'X25519'}, true, []); },
+  async importPrivateJwk(jwk){ return crypto.subtle.importKey('jwk', jwk, {name:'X25519'}, false, ['deriveBits']); },
+  async deriveSharedAesKey(privKey, pubKey) {
+    const sb = await crypto.subtle.deriveBits({name:'X25519',public:pubKey}, privKey, 256);
+    const km = await crypto.subtle.importKey('raw', sb, {name:'HKDF'}, false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      {name:'HKDF',hash:'SHA-256',salt:new Uint8Array(32),info:strToBytes('OpenMail-v2-X25519')},
+      km, {name:'AES-GCM',length:256}, false, ['encrypt','decrypt']
+    );
+  },
+  async aesGcmEncrypt(key,iv,bytes){ return new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,bytes)); },
+  async aesGcmDecrypt(key,iv,bytes){ return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv},key,bytes)); },
+  async generateAesKey() { return crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']); },
+  async exportAesKey(key){ return new Uint8Array(await crypto.subtle.exportKey('raw',key)); },
+  async importAesKey(rb) { return crypto.subtle.importKey('raw',rb,{name:'AES-GCM'},false,['encrypt','decrypt']); }
+};
+
+/* ============================================================
+   PLAINTEXT PACK / UNPACK
+   ============================================================ */
+function packPlaintext(from, subject, tsSec, body) {
+  const fb=strToBytes(from), sb=strToBytes(subject), bb=strToBytes(body||'');
+  if(fb.length>65535||sb.length>65535) throw new Error('from/subject too long');
+  const out=new Uint8Array(2+fb.length+2+sb.length+4+bb.length);
+  let i=0;
+  out[i++]=fb.length>>8; out[i++]=fb.length&0xff; out.set(fb,i); i+=fb.length;
+  out[i++]=sb.length>>8; out[i++]=sb.length&0xff; out.set(sb,i); i+=sb.length;
+  out[i++]=(tsSec>>>24)&0xff; out[i++]=(tsSec>>>16)&0xff; out[i++]=(tsSec>>>8)&0xff; out[i++]=tsSec&0xff;
+  out.set(bb,i); return out;
+}
+function unpackPlaintext(buf) {
+  let i=0;
+  const fl=(buf[i]<<8)|buf[i+1]; i+=2;
+  const from=bytesToStr(buf.subarray(i,i+fl)); i+=fl;
+  const sl=(buf[i]<<8)|buf[i+1]; i+=2;
+  const subject=bytesToStr(buf.subarray(i,i+sl)); i+=sl;
+  const ts=((buf[i]<<24)|(buf[i+1]<<16)|(buf[i+2]<<8)|buf[i+3])>>>0; i+=4;
+  const body=bytesToStr(buf.subarray(i));
+  return {from,subject,ts,body};
+}
+function makeEid(tsSec) {
+  return tsSec.toString(36) + Math.floor(Math.random()*1296).toString(36).padStart(2,'0');
+}
+
+/* ============================================================
+   ENCRYPTED EMAIL FILENAME BUILDER
+   ============================================================ */
+async function encryptEmailFilenames(recipientPubKey, from, subject, body, tsMs) {
+  const tsSec=Math.floor(tsMs/1000), eid=makeEid(tsSec);
+  const plaintext=packPlaintext(from,subject,tsSec,body);
+  const ephKp=await CRYPTO.generateX25519Keypair();
+  const ephPub=await CRYPTO.exportPublicRaw(ephKp.publicKey);
+  const sharedKey=await CRYPTO.deriveSharedAesKey(ephKp.privateKey,recipientPubKey);
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const cipher=await CRYPTO.aesGcmEncrypt(sharedKey,iv,plaintext);
+  const numChunks=Math.ceil(cipher.length/CHUNK_RAW_BUDGET)||1;
+  if(numChunks>65535) throw new Error('Message too long');
+  const headerData=concatBytes(ephPub,iv,new Uint8Array([numChunks>>8,numChunks&0xff]));
+  const headerFn='xh-'+eid+'-'+bytesToB64Url(headerData);
+  const chunkFns=[];
+  for(let i=0;i<numChunks;i++){
+    const slice=cipher.subarray(i*CHUNK_RAW_BUDGET,Math.min((i+1)*CHUNK_RAW_BUDGET,cipher.length));
+    chunkFns.push('xc-'+eid+'-'+i+'-'+bytesToB64Url(slice));
+  }
+  return {eid,header:headerFn,chunks:chunkFns};
+}
+
+/* ============================================================
+   ENCRYPTED EMAIL PARSING
+   ============================================================ */
+function parseEncFile(filename) {
+  let fn=filename;
+  const pm=fn.match(/^u\.[a-z0-9_-]+\.(xh-|xc-)/i);
+  if(pm) fn=fn.slice(fn.indexOf(pm[1]));
+  let m=fn.match(/^xh-([a-z0-9]+)-(.+)$/);
+  if(m){
+    let d=m[2];
+    if(d.endsWith('_CRC_')) d=d.slice(0,-5);
+    return {kind:'header',eid:m[1],data:d,filename:fn};
+  }
+  m=fn.match(/^xc-([a-z0-9]+)-(\d+)-(.+)$/);
+  if(m){
+    let d=m[3];
+    if(d.endsWith('_CRC_')) d=d.slice(0,-5);
+    return {kind:'chunk',eid:m[1],idx:parseInt(m[2],10),data:d,filename:fn};
+  }
+  return null;
+}
+async function decryptEmail(headerEntry, chunkEntries, myPriv) {
+  try {
+    const hdr=b64UrlToBytes(headerEntry.data);
+    if(hdr.length<46) return null;
+    const ephPub=await CRYPTO.importPublicRaw(hdr.subarray(0,32));
+    const iv=hdr.subarray(32,44);
+    const numChunks=(hdr[44]<<8)|hdr[45];
+    const chunkMap=new Map();
+    for(const c of chunkEntries) chunkMap.set(c.idx,c.data);
+    const slices=[];
+    for(let i=0;i<numChunks;i++){
+      const data=chunkMap.get(i);
+      if(data===undefined) return null;
+      slices.push(b64UrlToBytes(data));
+    }
+    const cipher=concatBytes(...slices);
+    const sharedKey=await CRYPTO.deriveSharedAesKey(myPriv,ephPub);
+    const plaintextBytes=await CRYPTO.aesGcmDecrypt(sharedKey,iv,cipher);
+    const parsed=unpackPlaintext(plaintextBytes);
+    return {from:parsed.from,subject:parsed.subject,body:parsed.body,date:parsed.ts*1000,
+      filename:headerEntry.fullName||headerEntry.filename,
+      chunks:chunkEntries.sort((a,b)=>a.idx-b.idx).map(c=>c.fullName||c.filename),serverBin:headerEntry.bin||null,encrypted:true};
+  } catch(e) { console.warn('decrypt failed',headerEntry.filename,e); return null; }
+}
+
+/* ============================================================
+   USER STORAGE
+   ============================================================ */
+// Privacy policy: never persist usernames, account lists, passwords, or
+// credential recovery records. Daily accounts must be recreated explicitly.
+function getSavedUsernames() { return []; }
+function addSavedUsername() {}
+function removeSavedUsername() {}
+function getEncBlobKey(uname) { return 'openmail_blob_'+uname; }
+function getRecoveryKey(uname) { return 'openmail_recovery_'+String(uname||'').toLowerCase(); }
+function saveLocalCredentialRecovery() { return false; }
+function readLocalCredentialRecovery() { return null; }
+function purgeSavedUserData() {
+  try {
+    localStorage.removeItem('openmail_accounts');
+    const remove=[];
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k && k.startsWith('openmail_recovery_')) remove.push(k);
+    }
+    remove.forEach(k=>localStorage.removeItem(k));
+  } catch(_) {}
+}
+
+/* ============================================================
+   CREDENTIAL RECORDS (stored in Filebin filenames, not localStorage)
+   ============================================================ */
+function getCredFilename(uname) { return 'cred-' + uname; } // legacy body-based credential
+function fileNameOf(f) {
+  if (!f) return '';
+  if (typeof f === 'string') return f;
+  return f.name || f.filename || f.fileName || f.file || f.path || '';
+}
+
+const CRED_FN_PREFIX = 'ua';
+const CRED_FN_CHUNK_BUDGET = 72; // conservative: keeps every auth filename below Filebin's short-name limit
+
+function cleanCredentialForStorage(cred) {
+  const c = {};
+  ['version','username','salt','passwordHash','pubKeyB64','encryptedPriv','createdAt','accountDay','storage'].forEach(k => {
+    if (cred && cred[k] !== undefined) c[k] = cred[k];
+  });
+  c.version = Math.max(2, Number(c.version || 2));
+  c.storage = 'filename-chunks';
+  return c;
+}
+
+function makeCredentialFilenames(credObj) {
+  const clean = cleanCredentialForStorage(credObj);
+  const payload = strToB64Url(JSON.stringify(clean));
+  const cid = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const total = Math.ceil(payload.length / CRED_FN_CHUNK_BUDGET) || 1;
+  if (total > 1295) throw new Error('Credential record too large');
+  const names = [];
+  for (let i = 0; i < total; i++) {
+    const part = payload.slice(i * CRED_FN_CHUNK_BUDGET, (i + 1) * CRED_FN_CHUNK_BUDGET);
+    const fn = `${CRED_FN_PREFIX}-${cid}-${i.toString(36)}-${total.toString(36)}-${part}`;
+    if (fn.length > FBN_MAX_NAME) throw new Error('Credential filename exceeds Filebin limit');
+    names.push(fn);
+  }
+  return names;
+}
+
+function parseCredentialFilename(fn) {
+  fn = String(fn || '');
+  const m = fn.match(/^ua-([a-z0-9]+)-([0-9a-z]+)-([0-9a-z]+)-([A-Za-z0-9_-]+)$/);
+  if (!m) return null;
+  return { cid:m[1], idx:parseInt(m[2],36), total:parseInt(m[3],36), data:m[4], filename:fn };
+}
+
+function reconstructCredentialsFromFiles(files, wantedUser) {
+  const groups = new Map();
+  for (const f of files || []) {
+    // ACNET cross-compat: listings that were not prefix-filtered (relay lists,
+    // whole-bin scrapes) carry the full logical name "u.<slug>.ua-…", and some
+    // proxies glue path/header junk before the token. Normalize to the bare
+    // ua- tail exactly like ACNET's omReconstructCredentialsFromFiles does.
+    let fn = String(fileNameOf(f) || '').split('/').pop();
+    const pref = fn.match(/^u\.([a-z0-9-]+)\.(ua-.+)$/i);
+    if (pref) fn = pref[2];
+    const uaAt = fn.indexOf('ua-');
+    if (uaAt > 0) fn = fn.slice(uaAt);
+    const p = parseCredentialFilename(fn);
+    if (!p || !Number.isFinite(p.idx) || !Number.isFinite(p.total) || p.total < 1) continue;
+    if (!groups.has(p.cid)) groups.set(p.cid, { total:p.total, chunks:new Map(), filenames:[], bin:(f && f._bin) || null });
+    const g = groups.get(p.cid);
+    if (g.total !== p.total) continue;
+    g.chunks.set(p.idx, p.data);
+    g.filenames.push(p.filename);
+  }
+
+  const candidates = [];
+  groups.forEach((g, cid) => {
+    if (g.chunks.size !== g.total) return;
+    let payload = '';
+    for (let i = 0; i < g.total; i++) {
+      const part = g.chunks.get(i);
+      if (part === undefined) return;
+      payload += part;
+    }
+    try {
+      const raw = b64UrlToStr(payload);
+      const cred = JSON.parse(raw);
+      if (!cred || String(cred.username || '').toLowerCase() !== String(wantedUser || '').toLowerCase()) return;
+      cred._source = 'filename';
+      cred._cid = cid;
+      cred._filenames = g.filenames;
+      cred._bin = g.bin || null;
+      candidates.push(cred);
+    } catch(e) {
+      dbg(`CRED: corrupt filename credential set ${cid}`, 'err');
+    }
+  });
+
+  candidates.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+  return candidates[0] || null;
+}
+
+async function fetchCredentialBodyFromBin(uname, bin, sourceLabel) {
+  const fn = userPrefix(uname) + getCredFilename(uname);
+  const url = `${SRV}/${encodeURIComponent(bin)}/${encodeURIComponent(fn)}`;
+  dbg(`CRED BODY FETCH: /${bin}/${fn}`);
+  const res = await proxiedFetch(url, { tag:sourceLabel || 'CRED body' });
+  if (!res) return null;
+  try {
+    const t = await res.text();
+    if (!t || t.trim().startsWith('<') || t.trim().startsWith('Title:') || t.trim().startsWith('<!')) return null;
+    const cred = JSON.parse(t);
+    if (String(cred.username || '').toLowerCase() !== String(uname || '').toLowerCase()) return null;
+    cred._source = sourceLabel || 'body';
+    cred._bin = bin;
+    dbg(`CRED body: OK from ${bin}`, 'ok');
+    return cred;
+  } catch(e) {
+    dbg(`CRED body ${bin}: non-JSON or corrupt response`, 'info');
+    return null;
+  }
+}
+
+async function fetchCredentialFromBody(uname) {
+  const bins=openMailResolveReadBins(getBinId(uname));
+  const found=await Promise.all(bins.map(bin=>fetchCredentialBodyFromBin(uname,bin,'body').catch(()=>null)));
+  for(let i=0;i<found.length;i++) if(found[i]) return found[i];
+  return null;
+}
+
+async function fetchCredentialFromFilenames(uname) {
+  const bin = getBinId(uname);
+  dbg(`CRED LIST: /${bin} [${userPrefix(uname)}] filename-auth across rolling bins`);
+  const files = await listMailbox(bin, userPrefix(uname));
+  const cred = reconstructCredentialsFromFiles(files, uname);
+  if (cred) {
+    dbg(`CRED: filename-auth OK (${cred._filenames ? cred._filenames.length : '?'} chunk file(s))`, 'ok');
+    return cred;
+  }
+  dbg('CRED: no filename-auth record found', 'info');
+  return null;
+}
+
+async function fetchLegacyCredentialBody(uname) {
+  // Kept as a compatibility label. Body search already includes the old
+  // literal `openmail` bin as the last candidate.
+  return fetchCredentialFromBody(uname);
+}
+
+async function fetchCredential(uname) {
+  // Account recreation can leave yesterday's body credential beside today's
+  // ACNET filename credential. Collect every source and choose the newest
+  // createdAt value so both applications agree on the active daily identity.
+  const candidates=[];
+  try { const byBody=await fetchCredentialFromBody(uname); if(byBody) candidates.push(byBody); } catch(e) { dbg('CRED body candidate failed: '+e.message,'info'); }
+  try { const byName=await fetchCredentialFromFilenames(uname); if(byName) candidates.push(byName); } catch(e) { dbg('CRED filename candidate failed: '+e.message,'info'); }
+  const local=readLocalCredentialRecovery(uname);
+  if(local) candidates.push(local);
+  candidates.sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
+  const best=candidates[0]||null;
+  if(best && best._source==='local-recovery') dbg('CRED: using newest local encrypted recovery record','ok');
+  return best;
+}
+
+async function authUploadFilebin(binId, filename, content) {
+  return uploadToServer(binId, filename, content, 'application/octet-stream');
+}
+
+async function uploadCredential(uname, credObj) {
+  const logicalBin = getBinId(uname);
+  const actualBin = openMailResolveWriteBin(logicalBin);
+  const pfx = userPrefix(uname);
+  const clean = cleanCredentialForStorage(credObj);
+  const body = JSON.stringify(clean);
+  const shortFn = pfx + getCredFilename(uname);
+  dbg(`CRED UPLOAD: /${actualBin}/${shortFn} (${body.length}B body)`);
+
+  // A credential write must be real and verifiable. Never claim account
+  // creation succeeded merely because an opaque no-cors request was sent.
+  const uploadResult = await uploadToServer(logicalBin, shortFn, body, 'application/json');
+  const definitive2xx = !!(uploadResult && uploadResult.ok && Number(uploadResult.status) >= 200 && Number(uploadResult.status) < 300);
+  const verified = definitive2xx || await verifyUpload(actualBin, shortFn);
+  if(!verified) throw new Error('Credential upload could not be verified on Filebin');
+  dbg('CRED UPLOAD: body-based verified', 'ok');
+
+  // Keep a same-browser encrypted recovery copy. This is required because
+  // every Filebin copy expires after roughly six days.
+  saveLocalCredentialRecovery(uname, clean);
+
+  // Best-effort filename-auth chunks (for ACNET/cross-tool interoperability).
+  try {
+    const names = makeCredentialFilenames(clean);
+    dbg(`CRED UPLOAD: also writing ${names.length} filename chunk(s) for interop`);
+    for (const fn of names) {
+      try { await uploadToServer(logicalBin, pfx + fn, '{}'); } catch(_) {}
+      await delay(60);
+    }
+  } catch(e) {
+    dbg(`CRED filename-auth interop skipped — ${e.message}`, 'info');
+  }
+
+  return true;
+}
+
+
+/* ============================================================
+   AUTH UI
+   ============================================================ */
+function toggleAuthMode() {
+  const lm=document.getElementById('login-mode'), sm=document.getElementById('signup-mode');
+  if(lm.style.display==='none'){lm.style.display='block';sm.style.display='none';}
+  else{lm.style.display='none';sm.style.display='block';}
+}
+
+/* ============================================================
+   SIGNUP
+   ============================================================ */
+let _signupBusy = false;
+async function doSignup() {
+  if(_signupBusy) return;
+  _signupBusy = true;
+  const btn=document.querySelector('#signup-mode .btn');
+  if(btn) { btn.disabled=true; btn.textContent='Creating\u2026'; }
+  try {
+    const userVal=document.getElementById('signup-user').value.trim().toLowerCase();
+    const password=document.getElementById('signup-pass').value;
+    const confirm=document.getElementById('signup-confirm').value;
+    if(!userVal) return toast('Username required (a-z, 0-9, _ -)','error');
+    if(!/^[a-z0-9_-]+$/.test(userVal)) return toast('Username: only a-z, 0-9, _ -','error');
+    if(userVal.length > 32) return toast('Username max 32 characters','error');
+    if(password.length<6) return toast('Password: min 6 characters','error');
+    if(password!==confirm) return toast('Passwords do not match','error');
+
+    toast('Checking availability\u2026','warn');
+    // Primary availability check: user's own Filebin mailbox credential filenames.
+    const existing = await fetchCredential(userVal);
+    if(existing && isCredentialCurrentDay(existing)) return toast('Username already registered for today','error');
+    if(existing && !isCredentialCurrentDay(existing)) dbg("SIGNUP: yesterday's credential found; daily recreation allowed", 'info');
+
+    // Registry check is secondary. The credential filename record is the source of truth for login.
+    const registryFiles=await listMailbox(REGISTRY_BIN);
+    for(const f of registryFiles){
+      const reg=parseRegistryFilename(fileNameOf(f));
+      if(reg && reg.uname.toLowerCase()===userVal && isTimestampCurrentDay(reg.ts)) return toast('Username already registered for today','error');
+    }
+
+    toast('Generating keypair\u2026','warn');
+    const kp=await CRYPTO.generateX25519Keypair();
+    const pubRaw=await CRYPTO.exportPublicRaw(kp.publicKey);
+    const privJwk=await CRYPTO.exportPrivateJwk(kp.privateKey);
+    const pubB64=bytesToB64Url(pubRaw);
+    const salt=CRYPTO.randomSalt();
+    const passHash=await CRYPTO.sha256(password+salt);
+    const aesKey=await CRYPTO.deriveAesFromPassword(password,salt);
+    const encryptedPriv=await CRYPTO.encryptJson(privJwk,aesKey); // string
+
+    const createdAt=Date.now();
+    const credObj={version:3, username:userVal, salt, passwordHash:passHash, pubKeyB64:pubB64, encryptedPriv, createdAt, accountDay:currentAccountDay(createdAt)};
+
+    toast('Uploading credentials\u2026','warn');
+    await uploadCredential(userVal, credObj);
+
+    // Publish public key to registry
+    try {
+      const regFilename=makeRegistryFilename(userVal,pubB64);
+      await uploadToServer(REGISTRY_BIN,regFilename,'{}');
+    } catch(e){ console.warn('Registry publish failed',e); }
+
+    toast('Account created. Logging in\u2026','success');
+    // Open session directly from local credential — filebin has eventual
+    // consistency and may not show uploaded chunks in listing for 10-30s.
+    // Using the local credObj avoids the read-back race entirely.
+    await openSessionFromCredential(userVal, password, credObj);
+  } catch(e){ toast('Signup failed: '+e.message,'error'); }
+  finally{ _signupBusy=false; if(btn){btn.disabled=false;btn.textContent='\u25b6 Create Account';} }
+}
+
+/* ============================================================
+   LOGIN
+   ============================================================ */
+let _loginBusy = false;
+async function doLogin() {
+  if(_loginBusy) return;
+  _loginBusy = true;
+  const btn=document.querySelector('#login-mode .btn');
+  if(btn) { btn.disabled=true; btn.textContent='Logging in\u2026'; }
+  try {
+    const userVal=document.getElementById('login-user').value.trim().toLowerCase();
+    const password=document.getElementById('login-pass').value;
+    if(!userVal||!password) return toast('Username and password required','error');
+    await doLoginInternal(userVal,password);
+  } finally{ _loginBusy=false; if(btn){btn.disabled=false;btn.textContent='\u25b6 Log In';} }
+}
+async function openSessionFromCredential(userVal, password, cred) {
+  if(!cred || !cred.salt || !cred.passwordHash || !cred.encryptedPriv || !cred.pubKeyB64)
+    throw new Error('Credential record is incomplete or corrupt');
+  if(!isCredentialCurrentDay(cred))
+    throw new Error('Account expired at 00:00 UTC — recreate this account for today');
+
+  const hash=await CRYPTO.sha256(password+cred.salt);
+  if(hash!==cred.passwordHash) throw new Error('Invalid password');
+
+  sessionAesKey=await CRYPTO.deriveAesFromPassword(password,cred.salt);
+  let privJwk;
+  try{ privJwk=await CRYPTO.decryptJson(cred.encryptedPriv,sessionAesKey); }
+  catch(e){ throw new Error('Failed to decrypt private key'); }
+
+  myPrivateKey=await CRYPTO.importPrivateJwk(privJwk);
+  myPublicKeyB64=cred.pubKeyB64;
+  currentUser={username:userVal, pubKeyB64:cred.pubKeyB64, createdAt:cred.createdAt, accountDay:credentialAccountDay(cred), credential:cred};
+  username=userVal;
+
+  // Refresh the account into today's rolling bin whenever login came from an
+  // older/legacy bin or from the local encrypted recovery record. This keeps
+  // active accounts alive despite Filebin's six-day expiry.
+  const activeBin = openMailActiveBin();
+  if(cred._bin !== activeBin || cred._source === 'local-recovery') {
+    try {
+      toast('Refreshing account storage…','warn');
+      await uploadCredential(userVal, cred);
+      try {
+        const regFilename=makeRegistryFilename(userVal,cred.pubKeyB64);
+        await uploadToServer(REGISTRY_BIN,regFilename,'{}');
+      } catch(_) {}
+    } catch(e) {
+      dbg('CRED rolling-bin refresh failed: '+e.message, 'err');
+      toast('Login OK, but server refresh failed: '+e.message, 'warn');
+    }
+  } else {
+    saveLocalCredentialRecovery(userVal, cred);
+  }
+
+  await loadUserData();
+  document.getElementById('login-view').style.display='none';
+  document.getElementById('mail-view').style.display='flex';
+  document.querySelector('.sidebar-header .addr').textContent=username+'@open.mail';
+  renderInbox();
+  try { await refreshInbox(); } catch(e) { dbg('Inbox refresh: '+e.message, 'warn'); }
+  startRefresh(); startSessionTimer(); startDailyAccountExpiryTimer();
+  toast('Welcome, '+username+' (valid until 00:00 UTC)','success');
+}
+
+async function doLoginInternal(userVal, password) {
+  toast('Fetching credentials from filebin…','warn');
+  let cred;
+  try { cred = await fetchCredential(userVal); }
+  catch(e) { return toast('Network error: '+e.message,'error'); }
+  if(!cred) return toast('Account not found — check username or sign up','error');
+
+  try { await openSessionFromCredential(userVal, password, cred); }
+  catch(e) { return toast(e.message || 'Login failed','error'); }
+}
+
+/* ============================================================
+   LOAD / SAVE ENCRYPTED EMAIL CACHE (localStorage — not auth)
+   ============================================================ */
+async function loadUserData() {
+  if(!sessionAesKey) return;
+  const blob=localStorage.getItem(getEncBlobKey(username));
+  if(!blob){emails=[];sentMails=[];return;}
+  try{ const data=await CRYPTO.decryptJson(blob,sessionAesKey);emails=data.inbox||[];sentMails=data.sent||[];}
+  catch(e){console.warn('Cache decrypt failed',e);emails=[];sentMails=[];}
+}
+async function saveUserData() {
+  if(!sessionAesKey) return;
+  const blob=await CRYPTO.encryptJson({inbox:emails,sent:sentMails},sessionAesKey);
+  localStorage.setItem(getEncBlobKey(username),blob);
+}
+
+/* ============================================================
+   LOCK / LOGOUT
+   ============================================================ */
+function doLock() {
+  myPrivateKey=null;sessionAesKey=null;stopRefresh();clearTimeout(sessionTimeout);clearTimeout(dailyExpiryTimeout);emails=[];sentMails=[];
+  document.getElementById('mail-view').style.display='none';
+  document.getElementById('login-view').style.display='flex';
+  if(username) document.getElementById('login-user').value=username;
+  document.getElementById('login-pass').value=''; document.getElementById('login-pass').focus();
+  toast('Session locked. Enter password to unlock.','warn');
+}
+function doLogout() {
+  myPrivateKey=null;sessionAesKey=null;stopRefresh();clearTimeout(sessionTimeout);clearTimeout(dailyExpiryTimeout);emails=[];sentMails=[];
+  if(username){ localStorage.removeItem(getEncBlobKey(username)); localStorage.removeItem('openmail_queue_'+username); }
+  currentUser=null; username=null;
+  document.getElementById('mail-view').style.display='none';
+  document.getElementById('login-view').style.display='flex';
+  ['login-pass','signup-user','signup-pass','signup-confirm'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  const loginUserEl=document.getElementById('login-user');
+  if(loginUserEl) loginUserEl.value='';
+  renderSavedAccounts();
+  document.getElementById('login-mode').style.display='block';
+  document.getElementById('signup-mode').style.display='none';
+  toast('Logged out.','success');
+}
+function startSessionTimer() {
+  clearTimeout(sessionTimeout);
+  sessionTimeout=setTimeout(()=>{toast('Session locked: inactivity','warn');doLock();},SESSION_TIMEOUT_MS);
+}
+function resetSessionTimer() { if(myPrivateKey) startSessionTimer(); }
+function startDailyAccountExpiryTimer() {
+  clearTimeout(dailyExpiryTimeout);
+  if(!myPrivateKey || !username) return;
+  dailyExpiryTimeout=setTimeout(()=>{
+    const expiredUser=username;
+    doLock();
+    const lm=document.getElementById('login-mode'), sm=document.getElementById('signup-mode');
+    if(lm) lm.style.display='none';
+    if(sm) sm.style.display='block';
+    const su=document.getElementById('signup-user');
+    if(su) su.value=expiredUser||'';
+    toast('Daily account expired. Recreate '+expiredUser+' for the new UTC day.','warn');
+  }, msUntilNextUtcDay());
+}
+function enforceDailyAccountBoundary() {
+  if(!myPrivateKey || !username || !currentUser) return;
+  if(isCredentialCurrentDay(currentUser.credential || currentUser)) return;
+  const expiredUser=username;
+  doLock();
+  const lm=document.getElementById('login-mode'), sm=document.getElementById('signup-mode');
+  if(lm) lm.style.display='none';
+  if(sm) sm.style.display='block';
+  const su=document.getElementById('signup-user');
+  if(su) su.value=expiredUser||'';
+  toast('Daily account expired. Recreate '+expiredUser+' for the new UTC day.','warn');
+}
+['mousedown','keydown','touchstart','scroll'].forEach(ev=>document.addEventListener(ev,resetSessionTimer,true));
+window.addEventListener('focus',enforceDailyAccountBoundary);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden) enforceDailyAccountBoundary();});
+
+/* ============================================================
+   SAVED ACCOUNTS DISABLED
+   ============================================================ */
+function renderSavedAccounts() {
+  purgeSavedUserData();
+  const box=document.getElementById('saved-accounts');
+  if(box) box.remove();
+}
+function selectSavedAccount() {}
+
+/* ============================================================
+   UI HELPERS
+   ============================================================ */
+function copyAddr() {
+  navigator.clipboard.writeText(username+'@open.mail')
+    .then(()=>toast('Address copied: '+username+'@open.mail','success'));
+}
+function showInbox() {
+  currentFolder='inbox';
+  document.getElementById('page-title').innerHTML='Inbox <span id="queue-badge" style="font-size:10px;color:var(--amber)"></span>';
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('nav-inbox').classList.add('active');
+  document.querySelector('.actions').innerHTML='<button type="button" onclick="refreshInbox()">Refresh</button><button type="button" onclick="openCompose()">Compose</button>';
+  renderInbox(); updateQueueBadge();
+}
+function showSent() {
+  currentFolder='sent';
+  document.getElementById('page-title').textContent='Sent';
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('nav-sent').classList.add('active');
+  document.querySelector('.actions').innerHTML='<button type="button" onclick="openCompose()">Compose</button>';
+  renderSent();
+}
+function clearCache() {
+  if(!username) return;
+  if(!confirm('Clear local cache for '+username+'?')) return;
+  emails=[];sentMails=[];saveUserData();renderInbox();toast('Cache cleared','success');
+}
+
+/* ============================================================
+   BIN HELPERS
+   ============================================================ */
+/* `openmail` is retained as a logical compatibility alias. The network
+   layer resolves it to today's rolling bin for writes and searches the recent
+   rolling bins plus the old literal bin for reads. Per-user mailboxes remain
+   filename namespaces because Filebin bins are flat. */
+const SHARED_BIN = OPENMAIL_LOGICAL_BIN;
+function getBinId(/* user */) { return SHARED_BIN; }
+function userSlug(user) {
+  return String(user||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'user';
+}
+/* Routing prefix that namespaces one user's files inside the shared bin. */
+function userPrefix(user) { return 'u.' + userSlug(user) + '.'; }
+function getMyBinId() { return getBinId(username); }
+function getMyPrefix() { return userPrefix(username); }
+
+/* ============================================================
+   NETWORK LAYER -- direct fetch, no proxy, with API log
+   ============================================================ */
+function getQueue() { try{return JSON.parse(localStorage.getItem('openmail_queue_'+(username||'_'))||'[]');}catch(e){return[];} }
+function setQueue(q) { localStorage.setItem('openmail_queue_'+(username||'_'),JSON.stringify(q)); }
+function queueItem(item) {
+  const q=getQueue(); q.push({...item,ts:Date.now(),retries:0}); setQueue(q);
+  updateQueueBadge(); toast('Queued -- will retry on next refresh','warn');
+}
+function updateQueueBadge() {
+  const count=getQueue().length;
+  const el=document.getElementById('queue-badge');
+  if(el) el.textContent=count?'('+count+' queued)':'';
+}
+async function flushQueue() {
+  const q=getQueue(); if(!q.length) return 0;
+  const remaining=[]; let sent=0;
+  for(const item of q){
+    try{ await _uploadDirect(item.binId,item.filename,item.content||'{}',item.contentType); sent++; }
+    catch(e){ item.retries=(item.retries||0)+1; if(item.retries<12) remaining.push(item); }
+  }
+  setQueue(remaining);
+  if(sent) toast(sent+' queued message(s) delivered','success');
+  updateQueueBadge(); return sent;
+}
+
+/* Upload via hidden iframe form — bypasses CORS entirely.
+   HTML form posts are not subject to same-origin policy. */
+function uploadViaIframe(url, body){
+  return new Promise(function(resolve){
+    var iname='upif_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+    var iframe=document.createElement('iframe');
+    iframe.name=iname;
+    iframe.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;border:none';
+    var form=document.createElement('form');
+    form.method='POST';form.action=url;form.target=iname;form.enctype='text/plain';
+    var ta=document.createElement('textarea');
+    ta.name='c';ta.value=String(body||'');form.appendChild(ta);
+    document.body.appendChild(iframe);document.body.appendChild(form);
+    var resolved=false;
+    function done(ok){if(resolved)return;resolved=true;try{document.body.removeChild(form);}catch(_){}try{document.body.removeChild(iframe);}catch(_){}resolve(ok);}
+    iframe.onload=function(){done(true);};
+    setTimeout(function(){done(false);},12000);
+    try{form.submit();}catch(e){done(false);}
+  });
+}
+/* Verify upload by reading back via GET (which works through CORS proxies). */
+async function verifyUpload(binId, filename){
+  const actualBin = openMailResolveWriteBin(binId);
+  try{
+    const r=await proxiedFetch(SRV+'/'+encodeURIComponent(actualBin)+'/'+encodeURIComponent(filename), {tag:'VERIFY'});
+    if(!r) return false;
+    // Direct Filebin GET is definitive, including legitimate zero-byte files.
+    if(String(r.url||'').startsWith(SRV+'/')) return r.ok;
+    const t=await r.text();
+    return !t.trim().startsWith('Title: 404') && !/\b404\b/.test(t.slice(0,160));
+  }catch(e){return false;}
+}
+
+async function _uploadDirect(binId, filename, content, contentType) {
+  const actualBin = openMailResolveWriteBin(binId);
+  let blob;
+  if (content instanceof Blob) blob = content.type ? new Blob([content]) : content;
+  else blob = new Blob([content == null ? '{}' : content]);
+  const url=`${SRV}/${encodeURIComponent(actualBin)}/${encodeURIComponent(filename)}`;
+  dbg(`POST /${actualBin}/${filename} (${blob.size}B)`);
+  const res=await fetchWithTimeout(url,{method:'POST',body:blob,credentials:'omit',mode:'cors'},25000);
+  if(res.ok||res.status===201||(res.status>=200&&res.status<300)){
+    dbg(`  → ${res.status} OK`,'ok'); return {ok:true,bin:actualBin,status:res.status};
+  }
+  const code=res.status;
+  const reason=code===405?'bin locked/expired/deleted':code===507?'Filebin storage full':code===403?'filename/type blocked':'HTTP '+code;
+  dbg(`  → ${code} ${reason}`,'err');
+  const err=new Error(reason); err.status=code; err.bin=actualBin; throw err;
+}
+
+async function uploadToServer(binId, filename, content, contentType) {
+  const actualBin=openMailResolveWriteBin(binId);
+  try { return await _uploadDirect(actualBin,filename,content,contentType); }
+  catch(firstError) {
+    // A no-cors POST may bypass browser CORS, but it is accepted only after a
+    // separate read-back proves the file really exists.
+    try {
+      const blob=content instanceof Blob?(content.type?new Blob([content]):content):new Blob([content==null?'{}':content]);
+      const url=`${SRV}/${encodeURIComponent(actualBin)}/${encodeURIComponent(filename)}`;
+      dbg(`POST /${actualBin}/${filename} (no-cors + verify)`);
+      await fetch(url,{method:'POST',body:blob,mode:'no-cors'});
+      await delay(1800);
+      if(await verifyUpload(actualBin,filename)){
+        dbg('  no-cors upload verified','ok');
+        return {ok:true,bin:actualBin,status:0,verified:true};
+      }
+    } catch(e) { dbg('  no-cors path failed: '+e.message,'err'); }
+    queueItem({binId:actualBin,filename,content:content instanceof Blob?null:content,contentType});
+    throw new Error(`Upload not verified in ${actualBin}: ${firstError.message}`);
+  }
+}
+
+async function deleteFromServer(binId, filename) {
+  try {
+    const actualBin=openMailResolveWriteBin(binId);
+    const url=`${SRV}/${encodeURIComponent(actualBin)}/${encodeURIComponent(filename)}`;
+    dbg(`DELETE /${actualBin}/${filename}`);
+    const res=await fetchWithTimeout(url,{method:'DELETE',credentials:'omit',mode:'cors'},15000);
+    dbg(`  \u2192 ${res.status}`,res.ok?'ok':'err'); return res.ok;
+  } catch(e){dbg(`  DELETE error: ${e.message}`,'err');return false;}
+}
+
+function _uniqFiles(list) {
+  const seen = new Set(), out = [];
+  for (const f of list || []) {
+    const name = fileNameOf(f);
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    out.push(typeof f === 'string' ? {name} : Object.assign({}, f, {name}));
+  }
+  return out;
+}
+
+function parseMailboxListingText(text, binId) {
+  const out = [];
+  const addName = (name, meta) => {
+    if (!name) return;
+    try { name = decodeURIComponent(String(name)); } catch(e) { name = String(name); }
+    name = name.split('/').pop().trim();
+    if (!name || name === binId || name === '.' || name === '..') return;
+    out.push(Object.assign({name}, meta || {}));
+  };
+
+  try {
+    const json = JSON.parse(text);
+    const walk = (v) => {
+      if (!v) return;
+      if (typeof v === 'string') { addName(v); return; }
+      if (Array.isArray(v)) { v.forEach(walk); return; }
+      if (typeof v === 'object') {
+        const n = v.name || v.filename || v.fileName || v.file || v.path;
+        if (typeof n === 'string') addName(n, v);
+        Object.keys(v).forEach(k => {
+          if (k === 'files' || k === 'items' || k === 'data' || k === 'bin') walk(v[k]);
+        });
+      }
+    };
+    walk(json);
+  } catch(e) {}
+
+  // HTML fallback: catches directory pages/proxy-rendered Filebin pages.
+  const safeBin = String(binId).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const hrefRx = new RegExp('href=["\\\']?[^"\\\'\\s>]*/' + safeBin + '/([^"\\\'?#/\\s>)]+)', 'gi');
+  let m;
+  while ((m = hrefRx.exec(text))) addName(m[1]);
+
+  const filenameRx = /"filename"\s*:\s*"([^"]+)"/gi;
+  while ((m = filenameRx.exec(text))) addName(m[1].replace(/\\\//g, '/'));
+
+  // Markdown link form: [name](.../openmail/<file>) — proxies like r.jina.ai render this.
+  const mdRx = new RegExp('\\]\\([^)]*/' + safeBin + '/([^)\\s?#/]+)', 'gi');
+  while ((m = mdRx.exec(text))) addName(m[1]);
+
+  // Format-independent safety net: Open.Mail uses a small set of well-defined
+  // filename shapes. Scrape any token that looks like one, no matter how the
+  // page/proxy wraps it. This makes parsing robust to filebin HTML changes.
+  //   reg2-… / reg-…           registry records
+  //   u.<slug>.<…>             per-user namespaced files (messages, creds, attachments)
+  //   xh-… / xc-…              raw (unprefixed) message header/chunk
+  //   ua…  / cred-…  / att-…   raw (unprefixed) credential/attachment files
+  const tokenRx = /\b((?:reg2?-|u\.[a-z0-9-]+\.|xh-|xc-|att-|cred-|ua-)[A-Za-z0-9._-]+)/g;
+  while ((m = tokenRx.exec(text))) {
+    let tok = m[1];
+    // markdown/html can glue trailing punctuation; trim common stray chars
+    tok = tok.replace(/[).,;"'\]]+$/,'');
+    addName(tok);
+  }
+
+  return _uniqFiles(out);
+}
+
+async function _listMailboxSingle(binId, prefix) {
+  const directUrl=`${SRV}/${encodeURIComponent(binId)}`;
+  dbg(`GET /${binId}${prefix ? ' [prefix '+prefix+']' : ''}`);
+  let res = null;
+  try{
+    const r = await fetchWithTimeout(directUrl, { method:'GET', credentials:'omit', mode:'cors', headers:{'Accept':'application/json'} }, 12000);
+    if(r.ok) res = r;
+    else if(r.status===404 || r.status===410) return [];
+  }catch(e){}
+  if(!res) res = await proxiedFetch(directUrl, { tag:binId, accept:'application/json' });
+  if (!res) return [];
+  try {
+    const body = await res.text();
+    let files = parseMailboxListingText(body, binId);
+    if (prefix) {
+      // Emulate a per-user folder: keep only this user's files and strip the
+      // routing prefix so downstream parsers see their expected filenames.
+      files = files
+        .filter(f => fileNameOf(f).startsWith(prefix))
+        .map(f => {
+          const stripped = fileNameOf(f).slice(prefix.length);
+          return typeof f === 'string' ? { name:stripped } : Object.assign({}, f, { name:stripped, _fullName:fileNameOf(f) });
+        });
+    }
+    if (files.length) { dbg(`  ${binId}: ${files.length} file(s)${prefix ? ' after prefix filter' : ''}`, 'ok'); return files; }
+    dbg(`  ${binId}: empty listing${prefix ? ' for prefix '+prefix : ''}`, 'info');
+  } catch(e) {
+    dbg(`  ${binId} read error: ${e.message}`, 'err');
+  }
+  return [];
+}
+
+async function listMailbox(binId, prefix) {
+  const bins=openMailResolveReadBins(binId);
+  const merged=[];
+  const parts=await Promise.all(bins.map(actualBin=>_listMailboxSingle(actualBin,prefix).then(files=>({actualBin,files})).catch(()=>({actualBin,files:[]}))));
+  for(const group of parts){
+    for(const f of group.files||[]){
+      const obj=typeof f==='string'?{name:f}:Object.assign({},f);
+      obj._bin=group.actualBin;
+      merged.push(obj);
+    }
+  }
+  const seen=new Set(), out=[];
+  for(const f of merged){
+    const key=(f._bin||'')+'|'+fileNameOf(f);
+    if(!fileNameOf(f)||seen.has(key)) continue;
+    seen.add(key); out.push(f);
+  }
+  if(bins.length>1) dbg(`ROLLING LIST: ${out.length} file(s) across ${bins.length} bin(s)`, out.length?'ok':'info');
+  return out;
+}
+
+/* ============================================================
+   ATTACHMENT UPLOAD (plain)
+   ============================================================ */
+async function uploadAttachment(file) {
+  dbg(`ATT UPLOAD: "${file.name}" (${fmtBytes(file.size)})`);
+
+  const rawBlob = new Blob([await file.arrayBuffer()]); // type-less = no CORS preflight
+  const myBin = openMailResolveWriteBin(getMyBinId());
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_').slice(0, 40);
+  const attName = getMyPrefix() + 'att-' + Date.now().toString(36) + '-' + safeName;
+  const url = `${SRV}/${myBin}/${attName}`;
+  dbg(`ATT: uploading \u2192 /${myBin}/${attName}`);
+
+  let ok = false;
+
+  // 1. CORS POST — no Content-Type = simple request, no preflight
+  try {
+    const res = await fetchWithTimeout(url, {method:'POST', body:rawBlob, credentials:'omit', mode:'cors'}, 30000);
+    if(res.ok || (res.status>=200&&res.status<300)) { ok=true; dbg(`ATT: POST ok (${res.status})`,'ok'); }
+    else dbg(`ATT: POST \u2192 HTTP ${res.status}`,'err');
+  } catch(e) { dbg(`ATT: POST failed \u2014 ${e.message}`,'err'); }
+
+  // 2. CORS PUT
+  if(!ok) {
+    try {
+      const res = await fetchWithTimeout(url, {method:'PUT', body:rawBlob, credentials:'omit', mode:'cors'}, 30000);
+      if(res.ok || (res.status>=200&&res.status<300)) { ok=true; dbg(`ATT: PUT ok (${res.status})`,'ok'); }
+      else dbg(`ATT: PUT \u2192 HTTP ${res.status}`,'err');
+    } catch(e) { dbg(`ATT: PUT failed \u2014 ${e.message}`,'err'); }
+  }
+
+  // 3. no-cors POST — bypasses preflight; opaque response so we assume success
+  if(!ok) {
+    try {
+      await fetch(url, {method:'POST', body:rawBlob, mode:'no-cors'});
+      await delay(1800);
+      ok = await verifyUpload(myBin, attName);
+      if(ok) dbg('ATT: no-cors POST verified','ok');
+      else dbg('ATT: no-cors POST was not verified','err');
+    } catch(e) { dbg(`ATT: no-cors failed \u2014 ${e.message}`,'err'); }
+  }
+
+  if(!ok) throw new Error('All upload methods failed \u2014 check network / filebin.net');
+
+  dbg(`ATT UPLOAD DONE \u2192 ${url}`,'ok');
+  return {
+    url,
+    name: file.name,
+    size: file.size,
+    type: file.type || getMimeFromName(file.name) || 'application/octet-stream'
+  };
+}
+
+async function downloadAttachment(meta) {
+  dbg(`ATT DOWNLOAD: ${meta.url}`);
+  const res = await proxiedFetch(meta.url, { tag:'ATT' });
+  if (!res) throw new Error('Download failed \u2014 use the filebin.net link to save manually');
+  const buf = await res.arrayBuffer();
+  dbg(`ATT: OK (${fmtBytes(buf.byteLength)})`, 'ok');
+  return new Blob([buf], {type: meta.type || getMimeFromName(meta.name) || 'application/octet-stream'});
+}
+
+/* ============================================================
+   PUBLIC KEY LOOKUP / REGISTRY FILENAMES
+   ============================================================ */
+function makeRegistryFilename(uname, pubB64) {
+  const userPart = strToB64Url(String(uname || '').toLowerCase());
+  return 'reg2-' + Date.now().toString(36) + '-' + userPart + '-' + pubB64;
+}
+
+function parseRegistryFilename(fn) {
+  fn = String(fn || '');
+
+  // New robust format: username is base64url, so hyphens in usernames/public keys are safe.
+  let m = fn.match(/^reg2-([a-z0-9]+)-([A-Za-z0-9_-]+)-([A-Za-z0-9_-]+)$/);
+  if (m) {
+    let uname = null;
+    try { uname = b64UrlToStr(m[2]); } catch(e) {}
+    if (!uname) return null;
+    const rawTs = parseInt(m[1], 36);
+    const ts = Number.isFinite(rawTs) ? (rawTs > 100000000000 ? rawTs : rawTs * 1000) : 0;
+    return { ts, uname:uname.toLowerCase(), pubB64:m[3], fn };
+  }
+
+  // Legacy format: reg-<timestamp>-<username>-<43-char-x25519-pubkey>
+  if (fn.startsWith('reg-')) {
+    const rest1 = fn.slice(4);
+    const firstDash = rest1.indexOf('-');
+    if (firstDash > 0) {
+      const tsPart = rest1.slice(0, firstDash);
+      const rest = rest1.slice(firstDash + 1);
+      if (rest.length > 44 && rest.charAt(rest.length - 44) === '-') {
+        const uname = rest.slice(0, rest.length - 44);
+        const pubB64 = rest.slice(rest.length - 43);
+        const rawTs = parseInt(tsPart, 36);
+        const ts = Number.isFinite(rawTs) ? (rawTs > 100000000000 ? rawTs : rawTs * 1000) : 0;
+        if (uname && pubB64) return { ts, uname:uname.toLowerCase(), pubB64, fn };
+      }
+    }
+  }
+
+  return null;
+}
+
+async function lookupPublicKeyB64(targetUser) {
+  const target = String(targetUser || '').toLowerCase().replace(/[^a-z0-9_-]/g,'');
+  // 1. Contact cache
+  const cached = contactPubKey(target);
+  if(cached) return cached;
+  // 2. Registry
+  const files=await listMailbox(REGISTRY_BIN);
+  let best = null;
+  for(const f of files){
+    const reg = parseRegistryFilename(fileNameOf(f));
+    if(reg && reg.uname === target && isTimestampCurrentDay(reg.ts) && (!best || reg.ts > best.ts)) best = reg;
+  }
+  if(best){ rememberContact(target, best.pubB64, best.ts, 'registry'); return best.pubB64; }
+  // 3. Credential fallback — fetch target's cred file, extract pubKeyB64
+  try{
+    const cred = await fetchCredential(target);
+    if(cred && cred.pubKeyB64 && isCredentialCurrentDay(cred)){
+      rememberContact(target, cred.pubKeyB64, cred.createdAt || Date.now(), 'credential');
+      return cred.pubKeyB64;
+    }
+  }catch(e){}
+  return null;
+}
+
+
+/* ============================================================
+   INBOX RENDER
+   ============================================================ */
+function fmtDate(ts) {
+  const d=new Date(ts), now=new Date();
+  if(d.toDateString()===now.toDateString()) return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString([],{month:'short',day:'numeric'});
+}
+function expiryInfo(em) {
+  if(!em.serverSeenAt) return null;
+  const remainingMs=SERVER_RETENTION_DAYS*86400000-(Date.now()-em.serverSeenAt);
+  const remainingHours=Math.floor(remainingMs/3600000);
+  if(remainingMs<=0) return{text:'cached only',danger:false};
+  if(remainingHours<24) return{text:'expires '+remainingHours+'h',danger:true};
+  return{text:'expires '+Math.floor(remainingHours/24)+'d',danger:false};
+}
+function esc(s){if(s==null)return'';return String(s).replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]));}
+
+function renderInbox() {
+  const box=document.getElementById('inbox-content');
+  if(!emails.length){
+    box.innerHTML=`<div class="empty"><h4>Inbox empty</h4><p>Your address: <strong style="color:var(--g0)">${esc(username)}@open.mail</strong><br>Share it and wait for messages.<br><br><span style="color:var(--g4);font-size:11px">Messages are E2E encrypted &middot; X25519+AES-GCM</span></p></div>`;
+    return;
+  }
+  emails.sort((a,b)=>(b.date||0)-(a.date||0));
+  let html='<div class="email-list">';
+  emails.forEach((em,idx)=>{
+    const exp=expiryInfo(em);
+    const expHtml=exp?`<span class="expires${exp.danger?' danger':''}">&#9201; ${exp.text}</span>`:'';
+    html+=`<div class="email-item ${em.read?'read':'unread'}" onclick="readEmail(${idx})">
+      <div class="email-sender">${esc(em.from||'Unknown')}</div>
+      <div class="email-subject">${esc(em.subject||'(no subject)')}</div>
+      <div class="email-snippet">${esc(em.snippet||'')}</div>
+      <div class="email-date">${em.date?fmtDate(em.date):'?'}${expHtml}</div>
+      <div class="email-actions" onclick="event.stopPropagation();removeEmail(${idx})">
+        <button>Delete</button>
+      </div>
+    </div>`;
+  });
+  box.innerHTML=html+'</div>';
+}
+
+function renderSent() {
+  const box=document.getElementById('inbox-content');
+  if(!sentMails.length){
+    box.innerHTML=`<div class="empty"><h4>No sent messages</h4><p>Messages you send will appear here.</p></div>`;
+    return;
+  }
+  sentMails.sort((a,b)=>(b.date||0)-(a.date||0));
+  let html='<div class="email-list">';
+  sentMails.forEach((em,idx)=>{
+    html+=`<div class="email-item read" onclick="readSentEmail(${idx})">
+      <div class="email-sender">To: ${esc(em.to||'Unknown')}</div>
+      <div class="email-subject">${esc(em.subject||'(no subject)')}</div>
+      <div class="email-snippet">${esc(em.snippet||'')}</div>
+      <div class="email-date">${em.date?fmtDate(em.date):'?'}</div>
+      <div class="email-actions" onclick="event.stopPropagation();removeSentEmail(${idx})">
+        <button>Delete</button>
+      </div>
+    </div>`;
+  });
+  box.innerHTML=html+'</div>';
+}
+
+/* ============================================================
+   REFRESH INBOX
+   ============================================================ */
+async function refreshInbox() {
+  if(!myPrivateKey) return;
+  await flushQueue();
+  const binId=getMyBinId();
+  toast('Syncing...','warn');
+  dbg(`=== REFRESH INBOX: ${binId} [${getMyPrefix()}] ===`);
+  const files=await listMailbox(binId, getMyPrefix());
+  if(!files.length){toast('Mailbox empty on server','warn');return;}
+  const headers=[], chunksByEid=new Map();
+  for(const f of files){
+    const fn=f.name||f.filename||f;
+    const p=parseEncFile(fn); if(!p) continue;
+    // Keep the real (prefixed) name so deletes hit the right file in the shared bin.
+    p.fullName = (f && f._fullName) ? f._fullName : fn;
+    p.bin = (f && f._bin) ? f._bin : openMailResolveWriteBin(binId);
+    if(p.kind==='header') headers.push(p);
+    else if(p.kind==='chunk'){if(!chunksByEid.has(p.eid))chunksByEid.set(p.eid,[]);chunksByEid.get(p.eid).push(p);}
+  }
+  let newCount=0; const now=Date.now();
+  const newSenders=new Set();
+  for(const hdr of headers){
+    if(emails.find(e=>e.filename===(hdr.fullName||hdr.filename))) continue;
+    const chunkList=chunksByEid.get(hdr.eid)||[];
+    const decrypted=await decryptEmail(hdr,chunkList,myPrivateKey);
+    if(!decrypted) continue;
+    decrypted.read=false; decrypted.snippet=(decrypted.body||'').replace(/\s+/g,' ').slice(0,90);
+    decrypted.serverSeenAt=now; emails.push(decrypted); newCount++;
+    // Note the sender so we can try to cache their key for replies.
+    const sName=String(decrypted.from||'').split('@')[0].toLowerCase().replace(/[^a-z0-9_-]/g,'');
+    if(sName && sName!==(username||'').toLowerCase() && !contactPubKey(sName)) newSenders.add(sName);
+  }
+  // Best-effort: resolve new senders' public keys from the registry and cache
+  // them, so the user can reply even after the registry later goes quiet.
+  for(const s of newSenders){
+    try{
+      const pk=await lookupPublicKeyB64(s);
+      if(pk) rememberContact(s, pk, now, 'inbox');
+    }catch(e){ dbg(`sender key lookup failed for ${s}: ${e.message}`,'info'); }
+  }
+  const serverFilenames=new Set(headers.map(h=>h.fullName||h.filename));
+  for(const em of emails){ if(em.filename&&serverFilenames.has(em.filename)) em.serverSeenAt=now; }
+  await saveUserData();
+  if(currentFolder==='inbox') renderInbox();
+  dbg(`Synced: ${newCount} new, ${headers.length} headers total`,'ok');
+  toast(newCount?'Fetched '+newCount+' new message(s)':'Inbox up to date','success');
+}
+
+function startRefresh(){stopRefresh();refreshTimer=setInterval(refreshInbox,REFRESH_INTERVAL_MS);}
+function stopRefresh(){if(refreshTimer)clearInterval(refreshTimer);refreshTimer=null;}
+
+/* ============================================================
+   READER
+   ============================================================ */
+function readEmail(idx) {
+  currentEmailIdx=idx; const em=emails[idx]; if(!em) return;
+  document.getElementById('read-subject').textContent=em.subject||'(no subject)';
+  document.getElementById('read-from').textContent=em.from||'Unknown';
+  document.getElementById('read-to').textContent=username+'@open.mail';
+  document.getElementById('read-date').textContent=em.date?new Date(em.date).toLocaleString():'Unknown';
+  document.getElementById('read-body').innerHTML=formatBodyWithAttachments(em.body);
+  document.getElementById('reader-modal').classList.add('active');
+  if(!em.read){em.read=true;saveUserData();if(currentFolder==='inbox')renderInbox();}
+}
+function readSentEmail(idx) {
+  const em=sentMails[idx]; if(!em) return; currentEmailIdx='sent:'+idx;
+  document.getElementById('read-subject').textContent=em.subject||'(no subject)';
+  document.getElementById('read-from').textContent=em.from||username+'@open.mail';
+  document.getElementById('read-to').textContent=em.to||'-';
+  document.getElementById('read-date').textContent=em.date?new Date(em.date).toLocaleString():'Unknown';
+  document.getElementById('read-body').innerHTML=formatBodyWithAttachments(em.body);
+  document.getElementById('reader-modal').classList.add('active');
+}
+function closeModal(){document.getElementById('reader-modal').classList.remove('active');currentEmailIdx=null;}
+async function deleteCurrent() {
+  if(currentEmailIdx==null) return;
+  if(typeof currentEmailIdx==='string'&&currentEmailIdx.startsWith('sent:')){
+    await removeSentEmail(parseInt(currentEmailIdx.split(':')[1],10));
+  } else { await removeEmail(currentEmailIdx); }
+  closeModal();
+}
+async function removeEmail(idx) {
+  const em=emails[idx]; if(!em) return;
+  const sourceBin=em.serverBin||getMyBinId();
+  if(em.chunks&&em.chunks.length) em.chunks.forEach((c,i)=>setTimeout(()=>deleteFromServer(sourceBin,c).catch(()=>{}),i*200));
+  if(em.filename) deleteFromServer(sourceBin,em.filename).catch(()=>{});
+  emails.splice(idx,1); await saveUserData();
+  if(currentFolder==='inbox') renderInbox(); toast('Email removed','success');
+}
+async function removeSentEmail(idx) {
+  sentMails.splice(idx,1); await saveUserData(); renderSent(); toast('Sent email removed','success');
+}
+
+/* ============================================================
+   ATTACHMENTS DISPLAY
+   ============================================================ */
+function getMimeFromName(n){const e=(n.split('.').pop()||'').toLowerCase();return({'jpg':'image/jpeg','jpeg':'image/jpeg','png':'image/png','gif':'image/gif','webp':'image/webp','pdf':'application/pdf','txt':'text/plain','json':'application/json','zip':'application/zip','mp4':'video/mp4','mp3':'audio/mpeg'}[e]||'application/octet-stream');}
+function fmtBytes(b){if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';return(b/1048576).toFixed(1)+' MB';}
+
+function formatBodyWithAttachments(body) {
+  if(!body) return '<pre></pre>';
+  currentAttachments = [];
+
+  // Strip attachment markers from visible body text
+  const cleanBody = body
+    .replace(/\[ATTACHMENT:[^\]]+\]/g, '')
+    .replace(/\[enc-file:[^\]]+\]/g, '')
+    .trimEnd();
+
+  // Parse new format: [ATTACHMENT:name|url|size|type]  (4 fields, no key)
+  const re1 = /\[ATTACHMENT:([^\]|]+)\|([^|]+)\|([^|]+)\|([^\]]+)\]/g;
+  let m;
+  while((m = re1.exec(body)) !== null) {
+    // If field 3 looks like a number it's size (new format); if it looks like base64 it's a key (old format)
+    const f3 = m[3], f4 = m[4];
+    if(/^\d+$/.test(f3)) {
+      // New format: name|url|size|type
+      currentAttachments.push({name:m[1], url:m[2], size:parseInt(f3,10)||0, type:f4||getMimeFromName(m[1])});
+    }
+    // old 5-field format is caught by re2 below
+  }
+  // Parse old encrypted format: [ATTACHMENT:name|url|key|size|type]  (5 fields)
+  const re2 = /\[ATTACHMENT:([^\]|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|([^\]]+)\]/g;
+  while((m = re2.exec(body)) !== null) {
+    if(!/^\d+$/.test(m[3])) { // field 3 is key (non-numeric) → old format
+      currentAttachments.push({name:m[1], url:m[2], size:parseInt(m[4],10)||0, type:m[5]||getMimeFromName(m[1])});
+    }
+  }
+  // Parse legacy enc-file format: [enc-file:name|url|key|size]
+  const re3 = /\[enc-file:([^\]|]+)\|([^|]+)\|([^|]+)\|(\d+)\]/g;
+  while((m = re3.exec(body)) !== null) {
+    currentAttachments.push({name:m[1], url:m[2], size:parseInt(m[4],10)||0, type:getMimeFromName(m[1])});
+  }
+
+  let html = '<pre>' + esc(cleanBody) + '</pre>';
+  if(currentAttachments.length) {
+    html += '<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">';
+    currentAttachments.forEach((att, idx) => { html += renderAttachmentCard(att, idx); });
+    html += '</div>';
+  }
+  return html;
+}
+
+function renderAttachmentCard(att, idx) {
+  // Build the human-facing filebin bin URL (bin index page)
+  const urlObj = (() => { try { return new URL(att.url); } catch(e) { return null; } })();
+  const filebinBinUrl = urlObj ? `https://filebin.net${urlObj.pathname.split('/').slice(0,2).join('/')}` : att.url;
+  return `<div style="padding:10px 14px;background:var(--bg3);border:1px solid var(--g3);display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="color:var(--g0)">&#128206;</span>
+      <span style="color:var(--g1);font-size:12px;font-weight:500;flex:1;word-break:break-all">${esc(att.name)}</span>
+      <span style="color:var(--g4);font-size:10px;white-space:nowrap">${fmtBytes(att.size)}</span>
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
+      <button type="button" onclick="triggerAttachmentDownload(${idx})"
+        style="font-family:var(--font);font-size:10px;padding:5px 14px;background:var(--g4);border:1px solid var(--g2);color:var(--g0);cursor:pointer;text-transform:uppercase;letter-spacing:.5px;transition:all .15s"
+        onmouseover="this.style.background='var(--g3)';this.style.borderColor='var(--g0)'"
+        onmouseout="this.style.background='var(--g4)';this.style.borderColor='var(--g2)'">
+        &#8659; Download
+      </button>
+      <a href="${esc(att.url)}" target="_blank" rel="noopener noreferrer"
+        style="font-family:var(--font);font-size:10px;padding:5px 12px;border:1px solid var(--g4);color:var(--amber);text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:all .15s"
+        onmouseover="this.style.borderColor='var(--amber)'" onmouseout="this.style.borderColor='var(--g4)'">
+        &#8599; filebin.net
+      </a>
+      <a href="${esc(filebinBinUrl)}" target="_blank" rel="noopener noreferrer"
+        style="font-family:var(--font);font-size:10px;padding:5px 12px;border:1px solid var(--g4);color:var(--g3);text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:all .15s"
+        onmouseover="this.style.borderColor='var(--g2)';this.style.color='var(--g1)'" onmouseout="this.style.borderColor='var(--g4)';this.style.color='var(--g3)'">
+        &#128193; Open Bin
+      </a>
+    </div>
+  </div>`;
+}
+
+async function triggerAttachmentDownload(idx) {
+  const att = currentAttachments[idx];
+  if(!att) { toast('Attachment data not found', 'error'); return; }
+  toast('Downloading \u201c' + att.name + '\u201d\u2026', 'warn');
+  dbg(`ATT DL: [${idx}] "${att.name}" from ${att.url}`);
+  try {
+    const blob = await downloadAttachment(att);
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl;
+    a.download = att.name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(objUrl); if(a.parentNode) a.parentNode.removeChild(a); }, 3000);
+    dbg(`ATT DL OK: "${att.name}" (${fmtBytes(blob.size)})`, 'ok');
+    toast('Downloaded: ' + att.name, 'success');
+  } catch(e) {
+    dbg('ATT DL FAIL: ' + e.message, 'err');
+    toast('Download failed \u2014 use the filebin.net link to save manually', 'error');
+  }
+}
+
+/* ============================================================
+   COMPOSE
+   ============================================================ */
+function openCompose(replyTo,replySubject,replyBody) {
+  const toEl=document.getElementById('compose-to');
+  const subjEl=document.getElementById('compose-subject');
+  const bodyEl=document.getElementById('compose-body');
+  if(replyTo!==undefined){toEl.value=replyTo||'';subjEl.value=replySubject||'';bodyEl.value=replyBody||'';}
+  else{toEl.value='';subjEl.value='';bodyEl.value='';}
+  selectedAttachments=[];
+  renderComposeAttachments();
+  clearFileSelection();
+  document.getElementById('compose-modal').classList.add('active');
+  updateComposeCounter();
+  setTimeout(()=>toEl.focus(),100);
+}
+function closeCompose(){
+  document.getElementById('compose-modal').classList.remove('active');
+  selectedAttachments=[];
+  renderComposeAttachments();
+}
+function replyToCurrent() {
+  if(currentEmailIdx==null||typeof currentEmailIdx==='string') return;
+  const em=emails[currentEmailIdx]; if(!em) return; closeModal();
+  const fromUser=(em.from||'').replace(/@.*$/,'');
+  openCompose(fromUser,(em.subject||'').startsWith('Re:')?em.subject:'Re: '+em.subject,'\n\n> '+(em.body||'').replace(/\n/g,'\n> '));
+}
+
+/* ============================================================
+   ATTACHMENT UI HANDLERS
+   ============================================================ */
+function onFileSelected(input) {
+  const files = Array.from(input.files);
+  if(!files.length) return;
+  input.value = '';
+
+  const MAX_CONCURRENT = 4;
+  const total = files.length;
+  let completed = 0;
+  let failed = 0;
+
+  async function uploadBatch(startIdx) {
+    const batch = files.slice(startIdx, startIdx + MAX_CONCURRENT);
+    if(!batch.length) {
+      if(completed > 0 && failed === 0) toast(`${completed} file(s) attached`, 'success');
+      else if(failed > 0) toast(`${completed} OK, ${failed} failed`, failed === total ? 'error' : 'warn');
+      return;
+    }
+
+    toast(`Uploading batch ${Math.floor(startIdx / MAX_CONCURRENT) + 1}/${Math.ceil(total / MAX_CONCURRENT)} (${startIdx + 1}-${Math.min(startIdx + MAX_CONCURRENT, total)} of ${total})...`, 'warn');
+
+    const results = await Promise.allSettled(
+      batch.map(file => uploadAttachment(file))
+    );
+
+    results.forEach((result, i) => {
+      if(result.status === 'fulfilled') {
+        selectedAttachments.push(result.value);
+        completed++;
+        toast('Attached: ' + result.value.name, 'success');
+      } else {
+        failed++;
+        toast('Failed: ' + batch[i].name + ' - ' + result.reason.message, 'error');
+      }
+    });
+    renderComposeAttachments();
+    updateComposeCounter();
+
+    // Next batch
+    if(startIdx + MAX_CONCURRENT < total) {
+      await delay(200);
+      await uploadBatch(startIdx + MAX_CONCURRENT);
+    } else {
+      if(failed === 0) toast(`${completed} file(s) attached`, 'success');
+      else toast(`${completed} OK, ${failed} failed`, 'warn');
+    }
+  }
+
+  uploadBatch(0);
+}
+function renderComposeAttachments() {
+  const box = document.getElementById('compose-attachments');
+  if(!selectedAttachments.length){box.innerHTML='';return;}
+  let html = '<div style="font-size:10px;color:var(--g3);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Attachments</div>';
+  selectedAttachments.forEach((att, i) => {
+    html += `<div class="att-item"><span style="flex:1">&#128206; ${esc(att.name)} <span style="color:var(--g3)">(${fmtBytes(att.size)})</span></span><button type="button" onclick="removeAttachment(${i})">Remove</button></div>`;
+  });
+  box.innerHTML = html;
+}
+function removeAttachment(idx) { selectedAttachments.splice(idx, 1); renderComposeAttachments(); }
+function clearFileSelection(){
+  const input=document.getElementById('compose-file'); if(input) input.value='';
+  const label=document.getElementById('compose-file-label'); if(label) label.textContent='+ Attach files (encrypted, max 4 at once)';
+  const nameEl=document.getElementById('compose-file-name'); if(nameEl) nameEl.textContent='';
+  const area=document.getElementById('compose-file-area'); if(area) area.classList.remove('has-file');
+}
+function updateComposeCounter() {
+  const counter=document.getElementById('compose-counter');
+  const body=document.getElementById('compose-body');
+  if(!counter||!body) return;
+  const len=strToBytes(body.value).length;
+  const numChunks=Math.ceil((len+100)/CHUNK_RAW_BUDGET);
+  counter.textContent=len+' bytes -> ~'+numChunks+' encrypted chunk'+(numChunks!==1?'s':'');
+  counter.className='compose-counter'+(numChunks>50?' warn':'')+(numChunks>200?' danger':'');
+}
+
+/* ============================================================
+   SEND EMAIL
+   ============================================================ */
+async function sendEmail() {
+  const rawTo=document.getElementById('compose-to').value.trim();
+  if(!rawTo) return toast('Recipient username required','error');
+  // Recipient may be "username" or "username:<pubkey>" (for users not in the registry)
+  let toRaw=rawTo, inlinePub=null;
+  const sepIdx=rawTo.indexOf(':');
+  if(sepIdx>-1){ toRaw=rawTo.slice(0,sepIdx); inlinePub=rawTo.slice(sepIdx+1).trim(); }
+  const toUser=toRaw.toLowerCase().replace(/[^a-z0-9_-]/g,'');
+  const subject=document.getElementById('compose-subject').value.trim();
+  let body=document.getElementById('compose-body').value;
+  if(!toUser) return toast('Recipient username required','error');
+  dbg(`=== SEND to "${toUser}" ===`);
+
+  // Resolve recipient public key. Registry is a convenience, not a requirement:
+  // any user is reachable as long as we have their public key.
+  let recPubB64=inlinePub;
+  if(!recPubB64){
+    toast('Looking up recipient key...','warn');
+    recPubB64=await lookupPublicKeyB64(toUser);
+  }
+  // Fall back to the local contact cache (registry may be unreachable).
+  if(!recPubB64){
+    recPubB64=contactPubKey(toUser);
+    if(recPubB64) dbg(`Using cached pubkey for ${toUser}`,'ok');
+  }
+  if(!recPubB64){
+    recPubB64=prompt('"'+toUser+'" is not in the registry.\nPaste their public key to send anyway (leave blank to cancel):');
+    if(recPubB64) recPubB64=recPubB64.trim();
+  }
+  if(!recPubB64) return toast('No public key for "'+toUser+'" \u2014 cannot encrypt','error');
+  let recPubKey;
+  try{recPubKey=await CRYPTO.importPublicRaw(b64UrlToBytes(recPubB64));}
+  catch(e){return toast('Recipient public key invalid','error');}
+  // Cache whatever key we ended up using so we never have to ask again.
+  rememberContact(toUser, recPubB64, Date.now(), inlinePub ? 'inline' : 'send');
+
+  // Build attachment block — format: [ATTACHMENT:name|url|size|type]
+  let attachmentBlock = '';
+  if(selectedAttachments.length > 0){
+    for(const att of selectedAttachments){
+      attachmentBlock += '\n[ATTACHMENT:'+att.name+'|'+att.url+'|'+att.size+'|'+att.type+']';
+    }
+  }
+  const fullBody = body + attachmentBlock;
+
+  let subjectNorm=subject||'(no subject)';
+  if(selectedAttachments.length > 0){
+    const attNames = selectedAttachments.map(a => a.name).join(', ');
+    subjectNorm += ` [${selectedAttachments.length} attachment${selectedAttachments.length > 1 ? 's' : ''}: ${attNames}]`;
+  }
+  const now=Date.now();
+  const fromAddr=username+'@open.mail';
+  toast('Encrypting...','warn');
+  let parts;
+  try{parts=await encryptEmailFilenames(recPubKey,fromAddr,subjectNorm,fullBody,now);}
+  catch(e){return toast('Encryption failed: '+e.message,'error');}
+  const recipientBin=getBinId(toUser);
+  const rcptPrefix=userPrefix(toUser);
+  toast('Uploading '+(1+parts.chunks.length)+' encrypted parts...','warn');
+  try{
+    await uploadToServer(recipientBin,rcptPrefix+parts.header,'{}');
+    for(let i=0;i<parts.chunks.length;i++){
+      await delay(180);
+      try{await uploadToServer(recipientBin,rcptPrefix+parts.chunks[i],'{}');}
+      catch(e){await delay(400);await uploadToServer(recipientBin,rcptPrefix+parts.chunks[i],'{}');}
+    }
+    sentMails.push({from:fromAddr,to:toUser+'@open.mail',subject:subjectNorm,date:now,body:fullBody,snippet:fullBody.replace(/\s+/g,' ').slice(0,90),filename:parts.header,chunks:parts.chunks});
+    await saveUserData();
+    closeCompose();
+    dbg(`Sent: ${parts.chunks.length+1} parts to ${recipientBin}`,'ok');
+    toast('Message sent (encrypted)','success');
+    if(currentFolder==='sent') renderSent();
+
+  }catch(e){toast('Send failed: '+e.message,'error');}
+}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+function toast(msg,type) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast '+(type||'');
+  requestAnimationFrame(()=>t.classList.add('show'));
+  setTimeout(()=>t.classList.remove('show'),3400);
+}
+
+/* ============================================================
+   PASSWORD STRENGTH INDICATOR
+   ============================================================ */
+function calcPwStrength(pw) {
+  if (!pw) return {score:0, label:'enter a password', hint:'', color:'var(--g4)'};
+  let score = 0;
+  const checks = {
+    len6:  pw.length >= 6,
+    len10: pw.length >= 10,
+    len16: pw.length >= 16,
+    mixed: /[A-Z]/.test(pw) && /[a-z]/.test(pw),
+    digit: /[0-9]/.test(pw),
+    sym:   /[^A-Za-z0-9]/.test(pw),
+  };
+  if (checks.len6)  score++;
+  if (checks.len10) score++;
+  if (checks.len16) score++;
+  if (checks.mixed) score++;
+  if (checks.digit) score++;
+  if (checks.sym)   score++;
+  score = Math.min(5, score);
+
+  const hints = [];
+  if (!checks.len6)  hints.push('min 6 chars');
+  if (!checks.mixed) hints.push('upper+lower');
+  if (!checks.digit) hints.push('add digits');
+  if (!checks.sym && score < 4) hints.push('symbols help');
+
+  const labels = ['','Too short','Weak','Fair','Strong','Very strong'];
+  const colors = ['var(--g4)','var(--red)','#cc5500','var(--amber)','var(--g2)','var(--g0)'];
+  return {score, label:labels[score]||'', hint:hints.slice(0,2).join(' \u00b7 '), color:colors[score]};
+}
+
+function updatePwStrength(pw) {
+  const r = calcPwStrength(pw);
+  for (let i = 1; i <= 5; i++) {
+    const seg = document.getElementById('ps' + i);
+    if (!seg) continue;
+    seg.className = 'pw-seg' + (i <= r.score ? ' lit-' + r.score : '');
+  }
+  const lbl = document.getElementById('pw-label');
+  const hint = document.getElementById('pw-hint');
+  if (lbl) { lbl.textContent = r.label; lbl.style.color = r.color; }
+  if (hint) { hint.textContent = r.hint; }
+}
+
+/* ============================================================
+   USER REGISTRY SCAN
+   ============================================================ */
+let scannedUsers = [];
+let selectedScanUser = null;
+
+/* ------------------------------------------------------------
+   CONTACT CACHE
+   A session-only directory of {uname -> {pubB64, ts, source}}.
+   This lets users keep seeing and messaging each other even when
+   the shared filebin registry is briefly unreachable. It is seeded
+   from registry scans and from the senders of received mail.
+   ------------------------------------------------------------ */
+function _contactKey(){ return 'openmail_contacts_'+(username||'_'); }
+function loadContacts(){
+  try { return JSON.parse(localStorage.getItem(_contactKey())||'{}'); }
+  catch(e){ return {}; }
+}
+function saveContacts(map){
+  try { localStorage.setItem(_contactKey(), JSON.stringify(map||{})); } catch(e){}
+}
+/* Record/refresh one contact. Newer pubkey (by ts) wins. */
+function rememberContact(uname, pubB64, ts, source){
+  uname = String(uname||'').toLowerCase().replace(/[^a-z0-9_-]/g,'');
+  if(!uname || !pubB64) return;
+  const map = loadContacts();
+  const prev = map[uname];
+  const stamp = ts || Date.now();
+  if(!prev || stamp >= (prev.ts||0)){
+    map[uname] = { uname, pubB64, ts:stamp, source:source||'manual' };
+    saveContacts(map);
+    dbg(`CONTACT remembered: ${uname} (${source||'manual'})`,'ok');
+  }
+}
+/* Best-known pubkey for a user from the session cache (no network). */
+function contactPubKey(uname){
+  uname = String(uname||'').toLowerCase();
+  const map=loadContacts();
+  const c=map[uname];
+  if(!c) return null;
+  if(!isTimestampCurrentDay(c.ts)){ delete map[uname]; saveContacts(map); return null; }
+  return c.pubB64 || null;
+}
+
+async function openScanUsers() {
+  scannedUsers = [];
+  selectedScanUser = null;
+  document.getElementById('scan-modal').classList.add('active');
+  document.getElementById('scan-meta').innerHTML = '<div>&#128270; fetching openmail registry...</div>';
+  document.getElementById('scan-body').innerHTML = '';
+
+  dbg('=== REGISTRY SCAN ===');
+  const files = await listMailbox(REGISTRY_BIN);
+  dbg(`Registry: ${files.length} file(s) found`, files.length ? 'ok' : 'info');
+
+  const seenUsers = new Map();
+  for (const f of files) {
+    const reg = parseRegistryFilename(fileNameOf(f));
+    if (!reg || !isTimestampCurrentDay(reg.ts)) continue;
+    if (reg.uname === (username||'').toLowerCase()) continue; // skip self
+    const prev = seenUsers.get(reg.uname);
+    if (!prev || reg.ts > prev.ts) seenUsers.set(reg.uname, reg);
+  }
+  // Persist everything the registry gave us for the current session only.
+  seenUsers.forEach(reg => {
+    rememberContact(reg.uname, reg.pubB64, reg.ts, 'registry');
+    dbg(`  user: ${reg.uname}  registered: ${reg.ts ? new Date(reg.ts).toLocaleDateString() : '?'}`, 'ok');
+  });
+
+  // Display the UNION of freshly-scanned users and session contacts,
+  // so a flaky registry fetch never hides people you already know.
+  const union = new Map();
+  Object.values(loadContacts()).forEach(c => {
+    if (!isTimestampCurrentDay(c.ts)) return;
+    if (c.uname === (username||'').toLowerCase()) return;
+    union.set(c.uname, { uname:c.uname, pubB64:c.pubB64, ts:c.ts||0, source:c.source||'cache' });
+  });
+  seenUsers.forEach((reg, uname) => union.set(uname, { uname, pubB64:reg.pubB64, ts:reg.ts, source:'registry' }));
+
+  const parsed = Array.from(union.values());
+  parsed.sort((a, b) => b.ts - a.ts);
+  scannedUsers = parsed;
+
+  const liveCount = seenUsers.size;
+  const count = parsed.length;
+  document.getElementById('scan-title').textContent = `openmail registry \u00b7 ${count} user${count!==1?'s':''} found`;
+  document.getElementById('scan-meta').innerHTML =
+    `<div><strong>${count}</strong> known user${count!==1?'s':''} (${liveCount} live from registry, rest from this session) \u00b7 click a user to compose</div>`;
+
+  if (!count) {
+    document.getElementById('scan-body').innerHTML =
+      '<div class="scan-empty">No users found yet.<br>Users appear here after they sign up, or once you exchange mail.<br><br><span style="font-size:10px;color:var(--g4)">If the registry is unreachable, ask the other user for their public key and send directly.</span></div>';
+    return;
+  }
+
+  document.getElementById('scan-body').innerHTML = `
+    <div style="padding-top:4px">
+      ${parsed.map((u, i) => `
+        <div class="scan-row" id="sr-${i}" onclick="selectScanUser(${i})" style="cursor:pointer">
+          <span class="scan-idx">${i+1}</span>
+          <span class="scan-user">${esc(u.uname)}@open.mail</span>
+          <span class="scan-ts">${u.ts ? new Date(u.ts).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '?'}</span>
+          <span class="scan-key" title="${esc(u.pubB64)}">pub: ${esc(u.pubB64.slice(0,20))}...</span>
+        </div>`).join('')}
+    </div>`;
+}
+
+function selectScanUser(i) {
+  if (selectedScanUser !== null) {
+    const prev = document.getElementById('sr-' + selectedScanUser);
+    if (prev) prev.style.background = '';
+  }
+  selectedScanUser = i;
+  const row = document.getElementById('sr-' + i);
+  if (row) row.style.background = 'rgba(0,255,102,.06)';
+}
+
+function openComposeToScanned() {
+  if (selectedScanUser === null || !scannedUsers[selectedScanUser]) {
+    toast('Select a user first', 'warn'); return;
+  }
+  const u = scannedUsers[selectedScanUser];
+  document.getElementById('scan-modal').classList.remove('active');
+  openCompose(u.uname, '', '');
+}
+
+/* ============================================================
+   ERROR LOGGING (visible diagnostics)
+   ============================================================ */
+(function(){
+  const el=document.createElement('div');
+  el.id='_errLog';
+  el.style.cssText='position:fixed;bottom:0;left:0;right:0;max-height:120px;overflow:auto;background:#1a0000;color:#ff5555;font-family:monospace;font-size:11px;padding:4px 8px;z-index:99999;border-top:2px solid #ff0000;display:none';
+  document.body.appendChild(el);
+  function show(e){
+    el.style.display='block';
+    el.textContent+=String(new Date().toLocaleTimeString())+' '+e+'\n';
+    el.scrollTop=el.scrollHeight;
+  }
+  window.addEventListener('error',e=>show('ERR: '+e.message+' at '+e.filename+':'+e.lineno));
+  window.addEventListener('unhandledrejection',e=>show('REJ: '+(e.reason&&e.reason.message||e.reason)));
+})();
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+(function checkSupport(){
+  if(typeof crypto==='undefined'||!crypto.subtle){alert('Web Crypto API not available.');return;}
+})();
+function showLogin(){
+  purgeSavedUserData();
+  document.getElementById('login-view').style.display='flex';
+  document.getElementById('mail-view').style.display='none';
+  document.getElementById('login-user').value='';
+  document.getElementById('login-pass').value='';
+  document.getElementById('signup-user').value='';document.getElementById('signup-pass').value='';document.getElementById('signup-confirm').value='';
+  document.getElementById('login-mode').style.display='block';document.getElementById('signup-mode').style.display='none';
+  renderSavedAccounts();
+  setTimeout(()=>{
+    const lu=document.getElementById('login-user');
+    if(lu&&lu.value) document.getElementById('login-pass').focus();
+    else if(lu) lu.focus();
+  },100);
+}
+showLogin();
+dbg(`No saved users · daily accounts · write ${openMailActiveBin()} · read ${openMailCandidateBins(true).length} bins`, 'ok');
+['input','keyup','change'].forEach(ev=>{
+  const b=document.getElementById('compose-body');if(b)b.addEventListener(ev,updateComposeCounter);
+  const s=document.getElementById('compose-subject');if(s)s.addEventListener(ev,updateComposeCounter);
+});
+window.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&document.getElementById('login-view').style.display!=='none'){
+    e.preventDefault();
+    if(document.getElementById('signup-mode').style.display!=='none') doSignup();
+    else doLogin();
+  }
+});
+</script>
+</div>
+<script id="openmail-acnet-universal-bridge">
+/*! Open.Mail ⇄ ACNET Universal Bridge
+ *  version: 1.0.0-universal
+ *  purpose: keep Open.Mail storage universal while ACNET only transports compact RPC frames.
+ *
+ *  Storage contract copied from standalone Open.Mail:
+ *   - logical bin alias: openmail (resolved to deterministic rolling bins)
+ *   - per-user prefix: u.<slug>.
+ *   - credentials: ua-...
+ *   - mail header: xh-<eid>-<b64url(header)>
+ *   - mail chunks: xc-<eid>-<idx>-<b64url(cipher-slice)>
+ *
+ *  This file is transport-agnostic. ACNET/ggwave/4FSK just needs to call:
+ *   - OpenMailACNETBridge.acnetInstall({ send: text => transmit(text,false) })
+ *   - OpenMailACNETBridge.handleIncomingText(rxText)
+ */
+(function attachOpenMailACNETBridge(root){
+  'use strict';
+
+  const VERSION = '1.0.0-universal';
+  const DEFAULTS = {
+    server: 'https://filebin.net',
+    sharedBin: 'openmail',
+    registryBin: 'openmail',
+    maxFrameChars: 155,
+    maxPayloadChars: 82,
+    responseTimeoutMs: 90000,
+    uploadVerifyRetries: 8,
+    uploadVerifyDelayMs: 900,
+    listSettleRetries: 5,
+    logPrefix: 'OpenMail⇄ACNET'
+  };
+
+  const state = {
+    cfg: Object.assign({}, DEFAULTS),
+    pending: new Map(),
+    relayChunks: new Map(),
+    responseChunks: new Map(),
+    relayMailFamilies: new Map(),
+    send: null,
+    oldOnRxPacket: null,
+    installed: false,
+    diagnostics: []
+  };
+
+  const TE = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
+  const TD = typeof TextDecoder !== 'undefined' ? new TextDecoder() : null;
+  const delay = ms => new Promise(r => setTimeout(r, ms));
+  function resolveWriteBin(binId){
+    if(typeof root.openMailResolveWriteBin === 'function') return root.openMailResolveWriteBin(binId);
+    if(binId && binId !== 'openmail') return String(binId);
+    return bridgeRollingBin(0);
+  }
+  function bridgeFnv1a(text){
+    let h=0x811c9dc5; text=String(text||'');
+    for(let i=0;i<text.length;i++) h=Math.imul(h^text.charCodeAt(i),0x01000193)>>>0;
+    return h.toString(36);
+  }
+  function bridgeRollingBin(offset){
+    const day=Math.floor(Date.now()/86400000)+Number(offset||0), seed='openmail-fixed-rolling-2026';
+    return 'omr1-'+bridgeFnv1a(seed+':'+day)+bridgeFnv1a(day+':'+seed);
+  }
+  function resolveReadBins(binId){
+    if(typeof root.openMailResolveReadBins === 'function') return root.openMailResolveReadBins(binId);
+    if(binId && binId !== 'openmail') return [String(binId)];
+    const out=[];
+    for(let i=0;i<=7;i++) out.push(bridgeRollingBin(-i));
+    out.push('openmail');
+    return out;
+  }
+
+  function log(msg, type){
+    const line = '[' + new Date().toLocaleTimeString('en', {hour12:false}) + '] ' + String(msg);
+    state.diagnostics.push({ts:Date.now(), type:type||'info', msg:String(msg)});
+    if(state.diagnostics.length > 300) state.diagnostics.shift();
+    try {
+      const fn = type === 'err' ? 'error' : type === 'warn' ? 'warn' : 'log';
+      console[fn]('[' + state.cfg.logPrefix + ']', msg);
+    } catch(_) {}
+    try {
+      if(root.addMsg) root.addMsg(type === 'err' ? 'rx' : 'sys', '✉ ' + msg);
+      else if(root.dbg) root.dbg(String(msg), type === 'err' ? 'err' : type === 'ok' ? 'ok' : 'info');
+    } catch(_) {}
+    return line;
+  }
+
+  function configure(opts){
+    if(opts && typeof opts === 'object') Object.assign(state.cfg, opts);
+    if(opts && typeof opts.send === 'function') state.send = opts.send;
+    return Bridge;
+  }
+
+  function bytesToB64Url(bytes){
+    let bin = '';
+    for(let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+    const b64 = (typeof btoa === 'function') ? btoa(bin) : Buffer.from(bin, 'binary').toString('base64');
+    return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function b64UrlToBytes(s){
+    s = String(s || '').replace(/-/g,'+').replace(/_/g,'/');
+    s += '='.repeat((4 - s.length % 4) % 4);
+    const bin = (typeof atob === 'function') ? atob(s) : Buffer.from(s, 'base64').toString('binary');
+    const out = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function strToBytes(s){
+    s = String(s == null ? '' : s);
+    if(TE) return TE.encode(s);
+    return new Uint8Array(Buffer.from(s, 'utf8'));
+  }
+  function bytesToStr(b){
+    if(TD) return TD.decode(b);
+    return Buffer.from(b).toString('utf8');
+  }
+  function strToB64Url(s){ return bytesToB64Url(strToBytes(s)); }
+  function b64UrlToStr(s){ return bytesToStr(b64UrlToBytes(s)); }
+  function jsonToB64(obj){ return strToB64Url(JSON.stringify(obj == null ? {} : obj)); }
+  function b64ToJson(s){ return JSON.parse(b64UrlToStr(s)); }
+
+  function rid(prefix){ return (prefix || 'om') + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function userSlug(user){ return String(user||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'user'; }
+  function userPrefix(user){ return 'u.' + userSlug(user) + '.'; }
+  function fileNameOf(f){
+    if(!f) return '';
+    if(typeof f === 'string') return f;
+    return f.name || f.filename || f.fileName || f.file || f.path || f._fullName || '';
+  }
+  function stripUserPrefix(name, prefix){
+    name = String(name || '');
+    prefix = String(prefix || '');
+    return prefix && name.startsWith(prefix) ? name.slice(prefix.length) : name;
+  }
+  function fullUserFilename(userOrPrefix, name){
+    const p = String(userOrPrefix || '').startsWith('u.') ? String(userOrPrefix) : userPrefix(userOrPrefix);
+    name = String(name || '');
+    return name.startsWith(p) ? name : p + name;
+  }
+
+  function uniqueFiles(list){
+    const seen = new Set(), out = [];
+    for(const f of list || []){
+      const name = fileNameOf(f);
+      if(!name || seen.has(name)) continue;
+      seen.add(name);
+      out.push(typeof f === 'string' ? {name} : Object.assign({}, f, {name}));
+    }
+    return out;
+  }
+
+  function parseMailboxListingText(text, binId){
+    text = String(text || '');
+    binId = String(binId || state.cfg.sharedBin || 'openmail');
+    const out = [];
+    const addName = (name, meta) => {
+      if(!name) return;
+      try { name = decodeURIComponent(String(name)); } catch(_) { name = String(name); }
+      name = name.split('/').pop().trim();
+      if(!name || name === binId || name === '.' || name === '..') return;
+      out.push(Object.assign({name}, meta || {}));
+    };
+
+    try {
+      const json = JSON.parse(text);
+      const walk = v => {
+        if(!v) return;
+        if(typeof v === 'string') { addName(v); return; }
+        if(Array.isArray(v)) { v.forEach(walk); return; }
+        if(typeof v === 'object'){
+          const n = v.name || v.filename || v.fileName || v.file || v.path;
+          if(typeof n === 'string') addName(n, v);
+          Object.keys(v).forEach(k => {
+            if(k === 'files' || k === 'items' || k === 'data' || k === 'bin' || k === 'f') walk(v[k]);
+          });
+        }
+      };
+      walk(json);
+    } catch(_) {}
+
+    const safeBin = String(binId).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let m;
+    const hrefRx = new RegExp('href=["\\\']?[^"\\\'\\s>]*/' + safeBin + '/([^"\\\'?#/\\s>)]+)', 'gi');
+    while((m = hrefRx.exec(text))) addName(m[1]);
+
+    const filenameRx = /"filename"\s*:\s*"([^"]+)"/gi;
+    while((m = filenameRx.exec(text))) addName(m[1].replace(/\\\//g, '/'));
+
+    const mdRx = new RegExp('\\]\\([^)]*/' + safeBin + '/([^\\)\\s?#/]+)', 'gi');
+    while((m = mdRx.exec(text))) addName(m[1]);
+
+    const tokenRx = /\b((?:reg2?-|u\.[a-z0-9-]+\.|xh-|xc-|att-|cred-|ua-)[A-Za-z0-9._-]+)/g;
+    while((m = tokenRx.exec(text))){
+      let tok = m[1].replace(/[).,;"'\]]+$/,'');
+      addName(tok);
+    }
+    return uniqueFiles(out);
+  }
+
+  const CORS_PROXIES = [
+    { label:'direct', wrap:u=>u },
+    { label:'codetabs', wrap:u=>'https://api.codetabs.com/v1/proxy/?quest='+encodeURIComponent(u) },
+    { label:'allorigins', wrap:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u) },
+    { label:'jina', wrap:u=>'https://r.jina.ai/'+u }
+  ];
+
+  async function proxiedFetch(targetUrl, opts){
+    opts = opts || {};
+    let sawServer = false;
+    for(const p of CORS_PROXIES){
+      const fopts = {method:'GET', credentials:'omit', mode:'cors'};
+      if(opts.accept) fopts.headers = {'Accept':opts.accept};
+      try {
+        const res = await fetch(p.wrap(targetUrl), fopts);
+        log((opts.tag || 'GET') + ' ' + p.label + ' → ' + res.status, res.ok ? 'ok' : 'warn');
+        if(res.status === 404){ sawServer = true; continue; }
+        if(!res.ok){ sawServer = true; continue; }
+        return res;
+      } catch(e){
+        log((opts.tag || 'GET') + ' ' + p.label + ' error: ' + e.message, 'warn');
+      }
+    }
+    if(!sawServer) log((opts.tag || 'GET') + ': all transports failed', 'err');
+    return null;
+  }
+
+  async function listMailboxSingle(binId, prefix){
+    const url = state.cfg.server + '/' + encodeURIComponent(binId);
+    let res=null;
+    try{
+      const direct=await fetch(url,{method:'GET',credentials:'omit',mode:'cors',headers:{'Accept':'application/json'}});
+      if(direct.ok) res=direct;
+      else if(direct.status===404 || direct.status===410) return [];
+    }catch(_){}
+    if(!res) res = await proxiedFetch(url, {tag:'list/'+binId, accept:'application/json'});
+    if(!res) return [];
+    const body = await res.text();
+    let files = parseMailboxListingText(body, binId);
+    if(prefix){
+      files = files.filter(f => fileNameOf(f).startsWith(prefix)).map(f => {
+        const full = fileNameOf(f);
+        const stripped = full.slice(prefix.length);
+        return Object.assign({}, (typeof f === 'string' ? {} : f), {name:stripped, _fullName:full, _bin:binId});
+      });
+    } else {
+      files = files.map(f => Object.assign({}, (typeof f === 'string' ? {name:f} : f), {_bin:binId}));
+    }
+    return uniqueFiles(files);
+  }
+
+  async function listMailbox(binId, prefix){
+    const bins=resolveReadBins(binId || state.cfg.sharedBin);
+    const out=[];
+    const groups=await Promise.all(bins.map(b=>listMailboxSingle(b,prefix).then(files=>({b,files})).catch(()=>({b,files:[]}))));
+    for(const g of groups) for(const f of g.files) out.push(f);
+    const seen=new Set(), merged=[];
+    for(const f of out){
+      const key=(f._bin||'')+'|'+fileNameOf(f);
+      if(!fileNameOf(f)||seen.has(key)) continue;
+      seen.add(key); merged.push(f);
+    }
+    log('rolling list '+merged.length+' file(s) across '+bins.length+' bin(s)', merged.length?'ok':'info');
+    return merged;
+  }
+
+  async function uploadDirect(binId, filename, content){
+    const actualBin = resolveWriteBin(binId || state.cfg.sharedBin);
+    filename = String(filename || '');
+    if(!filename) throw new Error('upload filename missing');
+    if(filename.length > 120) throw new Error('Filebin filename too long (' + filename.length + '): ' + filename.slice(0,40));
+    const url = state.cfg.server + '/' + encodeURIComponent(actualBin) + '/' + encodeURIComponent(filename);
+    let blob;
+    if(typeof Blob !== 'undefined') blob = content instanceof Blob ? (content.type ? new Blob([content]) : content) : new Blob([content == null ? '{}' : content]);
+    else blob = content == null ? '{}' : content;
+
+    try {
+      const res=await fetch(url,{method:'POST',body:blob,credentials:'omit',mode:'cors'});
+      if(res.ok || res.status===201 || (res.status>=200&&res.status<300)){
+        log('POST /'+actualBin+'/'+filename+' OK ('+res.status+')','ok');
+        return {ok:true,bin:actualBin,status:res.status};
+      }
+      const reason=res.status===405?'bin locked/expired/deleted':res.status===507?'Filebin storage full':res.status===403?'filename/type blocked':'HTTP '+res.status;
+      throw new Error(reason);
+    } catch(firstError){
+      log('POST /'+actualBin+'/'+filename+' failed: '+firstError.message,'warn');
+      try {
+        await fetch(url,{method:'POST',body:blob,mode:'no-cors'});
+        for(let i=0;i<4;i++){
+          if(i) await delay(800+i*300);
+          const check=await proxiedFetch(url,{tag:'verify/'+filename});
+          if(check){
+            let valid=String(check.url||'').startsWith(state.cfg.server+'/');
+            if(!valid){
+              try{
+                const text=await check.text();
+                valid=!text.trim().startsWith('Title: 404') && !/\b404\b/.test(text.slice(0,160));
+              }catch(_){ valid=false; }
+            }
+            if(valid){
+              log('POST no-cors /'+actualBin+'/'+filename+' verified','ok');
+              return {ok:true,bin:actualBin,status:0,verified:true};
+            }
+          }
+        }
+      } catch(e){ log('POST no-cors /'+actualBin+'/'+filename+' failed: '+e.message,'err'); }
+      throw new Error('Filebin upload not verified for '+filename+' in '+actualBin+': '+firstError.message);
+    }
+  }
+
+  function parseEncFile(filename){
+    filename = String(filename || '');
+    let m = filename.match(/^xh-([a-z0-9]+)-(.+)$/);
+    if(m) return {kind:'header', eid:m[1], data:m[2], filename};
+    m = filename.match(/^xc-([a-z0-9]+)-(\d+)-(.+)$/);
+    if(m) return {kind:'chunk', eid:m[1], idx:parseInt(m[2],10), data:m[3], filename};
+    return null;
+  }
+
+  function expectedChunksFromHeaderName(headerName){
+    const p = parseEncFile(stripUserPrefix(String(headerName || '').replace(/^u\.[^.]+\./,''), ''));
+    if(!p || p.kind !== 'header') return 0;
+    try {
+      const hdr = b64UrlToBytes(p.data);
+      if(hdr.length < 46) return 0;
+      return (hdr[44] << 8) | hdr[45];
+    } catch(_) { return 0; }
+  }
+
+  function verifyFamilyFromFileNames(files, prefix, eid, expected){
+    prefix = String(prefix || '');
+    eid = String(eid || '');
+    const names = (files || []).map(fileNameOf).filter(Boolean).map(n => stripUserPrefix(n, prefix));
+    const header = names.find(n => n.startsWith('xh-'+eid+'-'));
+    let need = Number(expected || 0);
+    if(!need && header) need = expectedChunksFromHeaderName(header);
+    const chunks = new Set();
+    for(const n of names){
+      const p = parseEncFile(n);
+      if(p && p.kind === 'chunk' && p.eid === eid && Number.isFinite(p.idx)) chunks.add(p.idx);
+    }
+    const missing = [];
+    if(!header) missing.push('xh');
+    for(let i=0; i<need; i++) if(!chunks.has(i)) missing.push('xc'+i);
+    return {ok:!!header && need > 0 && missing.length === 0, header:!!header, chunks:chunks.size, expected:need, missing};
+  }
+
+  async function verifyMailFamily(prefix, eid, expected, binId){
+    binId = binId || state.cfg.sharedBin;
+    for(let attempt=0; attempt<state.cfg.listSettleRetries; attempt++){
+      if(attempt) await delay(state.cfg.uploadVerifyDelayMs + attempt*350);
+      const files = await listMailbox(binId, prefix);
+      const v = verifyFamilyFromFileNames(files, '', eid, expected);
+      if(v.ok) return Object.assign({visible:true, attempt}, v);
+      log('verify family '+eid+' attempt '+(attempt+1)+' missing '+v.missing.join(','), 'warn');
+    }
+    const files = await listMailbox(binId, prefix);
+    return Object.assign({visible:false}, verifyFamilyFromFileNames(files, '', eid, expected));
+  }
+
+  async function uploadFilesVerified(binId, filenames, options){
+    options = options || {};
+    const uploaded = [];
+    for(const fn of filenames || []){
+      await uploadDirect(binId, fn, options.content || '{}');
+      uploaded.push(fn);
+      if(options.gapMs) await delay(options.gapMs);
+    }
+    if(options.prefix && options.eid){
+      const v = await verifyMailFamily(options.prefix, options.eid, options.expected, binId);
+      if(!v.ok) throw new Error('Filebin family incomplete: '+v.missing.join(','));
+      return {ok:true, uploaded:uploaded.length, verified:true, family:v};
+    }
+    for(let attempt=0; attempt<state.cfg.uploadVerifyRetries; attempt++){
+      if(attempt) await delay(state.cfg.uploadVerifyDelayMs + attempt*250);
+      const files = await listMailbox(binId);
+      const set = new Set(files.map(fileNameOf));
+      const missing = uploaded.filter(n => !set.has(n));
+      if(!missing.length) return {ok:true, uploaded:uploaded.length, verified:true};
+    }
+    throw new Error('Filebin upload not visible after verify');
+  }
+
+  function filterListByScope(files, scope, opts){
+    opts = opts || {};
+    scope = scope || 'all';
+    let names = (files || []).map(fileNameOf).filter(Boolean).map(n => {
+      // ACNET cross-compat: when the listing was not prefix-filtered, names
+      // arrive as the full logical "u.<slug>.<token>". Normalize to the bare
+      // tail so scope matching works and the returned list matches the tails
+      // ACNET's compact relay lists produce. Bare reg2-/reg- names pass through.
+      n = String(n).split('/').pop();
+      const pm = n.match(/^u\.[a-z0-9-]+\.((?:ua|cred|xh|xc|att|reg2?)-.+)$/i);
+      return pm ? pm[1] : n;
+    });
+    if(scope === 'login' || scope === 'cred'){
+      const groups = new Map();
+      for(const n of names){
+        const m = n.match(/^ua-([a-z0-9]+)-([0-9a-z]+)-([0-9a-z]+)-[A-Za-z0-9_-]+$/);
+        if(!m) continue;
+        const cid = m[1], idx = parseInt(m[2],36), total = parseInt(m[3],36);
+        if(!groups.has(cid)) groups.set(cid, {total, idxs:new Set(), names:[]});
+        const g = groups.get(cid);
+        g.idxs.add(idx); g.names.push(n);
+      }
+      let best = null;
+      groups.forEach(g => { if(g.idxs.size === g.total && (!best || g.names.length > best.names.length)) best = g; });
+      names = best ? best.names : names.filter(n => n.startsWith('ua-') || n.startsWith('cred-'));
+    } else if(scope === 'mail' || scope === 'inbox') {
+      names = names.filter(n => /^x[hc]-/.test(n));
+      const limit = Math.max(0, Number(opts.limit || 0));
+      if(limit){
+        const byEid = new Map();
+        for(const n of names){ const p = parseEncFile(n); if(p) { if(!byEid.has(p.eid)) byEid.set(p.eid, []); byEid.get(p.eid).push(n); } }
+        const eids = Array.from(byEid.keys()).slice(-limit);
+        names = eids.flatMap(e => byEid.get(e));
+      }
+    } else if(scope === 'registry') {
+      names = names.filter(n => /^reg2?-/.test(n));
+    } else if(scope === 'family' && opts.eid) {
+      names = names.filter(n => n.startsWith('xh-'+opts.eid+'-') || n.startsWith('xc-'+opts.eid+'-'));
+    }
+    return names;
+  }
+
+  function makeRequestFrames(target, op, payload, options){
+    options = options || {};
+    target = target || 'openmail';
+    op = op || payload.op || 'rpc';
+    const id = payload.id || options.id || rid('om');
+    payload = Object.assign({}, payload, {id, op});
+    const b64 = jsonToB64(payload);
+    const max = options.maxPayloadChars || state.cfg.maxPayloadChars;
+    if(('OMX1 '+target+' '+id+' '+op+' '+b64).length <= (options.maxFrameChars || state.cfg.maxFrameChars)){
+      return {id, frames:['OMX1 '+target+' '+id+' '+op+' '+b64]};
+    }
+    const parts = [];
+    for(let i=0; i<b64.length; i+=max) parts.push(b64.slice(i, i+max));
+    return {id, frames:parts.map((part, idx) => 'OMX1C '+target+' '+id+' '+op+' '+idx+'/'+parts.length+' '+part)};
+  }
+
+  function makeResponseFrames(id, ok, obj, options){
+    options = options || {};
+    obj = Object.assign({}, obj || {}, {id, ok:!!ok});
+    const b64 = jsonToB64(obj);
+    const max = options.maxPayloadChars || state.cfg.maxPayloadChars;
+    if(('OMX1R '+id+' '+(ok?'ok':'err')+' '+b64).length <= (options.maxFrameChars || state.cfg.maxFrameChars)){
+      return ['OMX1R '+id+' '+(ok?'ok':'err')+' '+b64];
+    }
+    const parts = [];
+    for(let i=0; i<b64.length; i+=max) parts.push(b64.slice(i, i+max));
+    return parts.map((part, idx) => 'OMX1RC '+id+' '+(ok?'ok':'err')+' '+idx+'/'+parts.length+' '+part);
+  }
+
+  function frameStartIndex(text){
+    const s = String(text || '');
+    const m = s.search(/\bOMX1(?:C|R|RC)?\b/i);
+    return m < 0 ? -1 : m;
+  }
+  function looksLikeFrame(text){ return frameStartIndex(text) >= 0; }
+  function trimToFrame(text){ const i = frameStartIndex(text); return i < 0 ? '' : String(text || '').slice(i).trim(); }
+
+  function parseFrame(text){
+    const s = trimToFrame(text);
+    if(!s) return null;
+    let m = s.match(/^OMX1\s+(\S+)\s+(\S+)\s+(\S+)\s+([A-Za-z0-9_-]+)\s*$/i);
+    if(m) return {kind:'req', chunk:false, target:m[1], id:m[2], op:m[3], payloadB64:m[4]};
+    m = s.match(/^OMX1C\s+(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\/(\d+)\s+([A-Za-z0-9_-]+)\s*$/i);
+    if(m) return {kind:'req', chunk:true, target:m[1], id:m[2], op:m[3], idx:parseInt(m[4],10), total:parseInt(m[5],10), payloadB64:m[6]};
+    m = s.match(/^OMX1R\s+(\S+)\s+(ok|err)\s+([A-Za-z0-9_-]+)\s*$/i);
+    if(m) return {kind:'res', chunk:false, id:m[1], ok:m[2].toLowerCase()==='ok', payloadB64:m[3]};
+    m = s.match(/^OMX1RC\s+(\S+)\s+(ok|err)\s+(\d+)\/(\d+)\s+([A-Za-z0-9_-]+)\s*$/i);
+    if(m) return {kind:'res', chunk:true, id:m[1], ok:m[2].toLowerCase()==='ok', idx:parseInt(m[3],10), total:parseInt(m[4],10), payloadB64:m[5]};
+    return null;
+  }
+
+  function acceptChunk(map, prefix, frame){
+    const key = prefix + ':' + frame.id + ':' + (frame.op || 'res');
+    if(!Number.isFinite(frame.idx) || !Number.isFinite(frame.total) || frame.idx < 0 || frame.idx >= frame.total) throw new Error('bad frame chunk index');
+    if(frame.total > 512) throw new Error('too many frame chunks');
+    if(!map.has(key)) map.set(key, {total:frame.total, chunks:new Map(), first:Date.now(), ok:frame.ok, target:frame.target, op:frame.op, id:frame.id});
+    const st = map.get(key);
+    if(st.total !== frame.total) throw new Error('frame chunk total mismatch');
+    st.chunks.set(frame.idx, frame.payloadB64);
+    if(st.chunks.size < st.total) return null;
+    let b64 = '';
+    for(let i=0;i<st.total;i++){
+      if(!st.chunks.has(i)) return null;
+      b64 += st.chunks.get(i);
+    }
+    map.delete(key);
+    return Object.assign({}, st, {payloadB64:b64});
+  }
+
+  async function sendFrames(frames, opts){
+    opts = opts || {};
+    const send = opts.send || state.send || (root.transmit ? (t => root.transmit(t, false)) : null);
+    if(typeof send !== 'function') throw new Error('No ACNET send/transmit function configured');
+    for(const f of frames){
+      await send(f);
+      await delay(opts.gapMs == null ? 90 : opts.gapMs);
+    }
+    return true;
+  }
+
+  async function request(target, op, payload, opts){
+    opts = opts || {};
+    const mk = makeRequestFrames(target || opts.target || 'openmail', op, payload || {}, opts);
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        state.pending.delete(mk.id);
+        reject(new Error('Open.Mail/ACNET RPC timeout: '+op));
+      }, opts.timeoutMs || state.cfg.responseTimeoutMs);
+      state.pending.set(mk.id, {resolve, reject, timer, op});
+      sendFrames(mk.frames, opts).catch(err => {
+        clearTimeout(timer);
+        state.pending.delete(mk.id);
+        reject(err);
+      });
+    });
+  }
+
+  async function handleResponseFrame(frame){
+    if(frame.chunk){
+      const done = acceptChunk(state.responseChunks, 'res', frame);
+      if(!done) return true;
+      frame = {kind:'res', id:done.id, ok:done.ok, payloadB64:done.payloadB64};
+    }
+    const p = state.pending.get(frame.id);
+    if(!p){ log('late/unknown response '+frame.id, 'warn'); return true; }
+    let obj;
+    try { obj = b64ToJson(frame.payloadB64); }
+    catch(e){ obj = {ok:false, error:'bad response JSON: '+e.message, id:frame.id}; }
+    clearTimeout(p.timer);
+    state.pending.delete(frame.id);
+    if(frame.ok && obj.ok !== false) p.resolve(obj);
+    else p.reject(new Error(obj.error || 'Open.Mail relay error'));
+    return true;
+  }
+
+  function fileFamilyIdFromFilename(fn){
+    const raw = String(fn || '').replace(/^u\.[^.]+\./, '');
+    const p = parseEncFile(raw);
+    return p ? p.eid : '';
+  }
+
+  async function relayHandlePayload(payload, ctx){
+    ctx = ctx || {};
+    const op = payload.op || 'list';
+    const bin = payload.bin || state.cfg.sharedBin;
+    if(op === 'ping') return {ok:true, pong:true, version:VERSION};
+    if(op === 'list'){
+      const prefix = payload.prefix || '';
+      const files = await listMailbox(bin, prefix);
+      return {ok:true, id:payload.id, bin, prefix, files:filterListByScope(files, payload.scope || payload.s, {limit:payload.limit || payload.n, eid:payload.eid})};
+    }
+    if(op === 'putFiles'){
+      const files = Array.isArray(payload.files) ? payload.files : [];
+      if(!files.length) throw new Error('putFiles: no files');
+      return await uploadFilesVerified(bin, files, {content:payload.content || '{}', prefix:payload.verifyPrefix, eid:payload.eid, expected:payload.expected});
+    }
+    if(op === 'putFile'){
+      if(!payload.filename) throw new Error('putFile: filename missing');
+      await uploadDirect(bin, payload.filename, payload.content || '{}');
+      return {ok:true, uploaded:1, filename:payload.filename};
+    }
+    if(op === 'mailFrag'){
+      const mid = String(payload.mid || payload.family || payload.id || '').replace(/[^a-z0-9_-]/gi,'');
+      const total = Math.max(1, Math.min(256, parseInt(payload.total,10)||1));
+      const idx = parseInt(payload.idx,10);
+      if(!mid || !Number.isFinite(idx) || idx < 0 || idx >= total) throw new Error('mailFrag: bad fragment metadata');
+      if(!state.relayMailFamilies.has(mid)) state.relayMailFamilies.set(mid, {total, chunks:new Map(), first:Date.now(), prefix:payload.prefix||'', eid:payload.eid||'', expected:payload.expected||0});
+      const st = state.relayMailFamilies.get(mid);
+      st.chunks.set(idx, String(payload.data || ''));
+      if(payload.prefix) st.prefix = payload.prefix;
+      if(payload.eid) st.eid = payload.eid;
+      if(payload.expected) st.expected = payload.expected;
+      return {ok:true, partial:st.chunks.size < st.total, have:st.chunks.size, total:st.total};
+    }
+    if(op === 'mailCommit'){
+      const mid = String(payload.mid || payload.family || '').replace(/[^a-z0-9_-]/gi,'');
+      const st = state.relayMailFamilies.get(mid);
+      if(!st) throw new Error('mailCommit: unknown family '+mid);
+      if(st.chunks.size !== st.total) throw new Error('mailCommit: incomplete fragments '+st.chunks.size+'/'+st.total);
+      let joined = '';
+      for(let i=0;i<st.total;i++){
+        if(!st.chunks.has(i)) throw new Error('mailCommit: missing fragment '+i);
+        joined += st.chunks.get(i);
+      }
+      let files;
+      try { files = b64ToJson(joined); } catch(_) { files = JSON.parse(joined); }
+      if(!Array.isArray(files)) throw new Error('mailCommit: decoded payload is not file list');
+      const prefix = payload.prefix || st.prefix || '';
+      const eid = payload.eid || st.eid || (files.map(fileFamilyIdFromFilename).find(Boolean) || '');
+      const expected = payload.expected || st.expected || 0;
+      const result = await uploadFilesVerified(bin, files, {content:'{}', prefix, eid, expected});
+      state.relayMailFamilies.delete(mid);
+      return Object.assign({ok:true, eid, files:files.length}, result);
+    }
+    if(op === 'verifyMail'){
+      return Object.assign({ok:true}, await verifyMailFamily(payload.prefix || '', payload.eid || '', payload.expected, bin));
+    }
+    throw new Error('unknown Open.Mail bridge op: '+op);
+  }
+
+  async function relayReceiveFrame(frame, ctx){
+    if(frame.chunk){
+      const done = acceptChunk(state.relayChunks, 'req', frame);
+      if(!done) return true;
+      frame = {kind:'req', target:done.target, id:done.id, op:done.op, payloadB64:done.payloadB64};
+    }
+    let payload;
+    try { payload = b64ToJson(frame.payloadB64); }
+    catch(e){ payload = {id:frame.id, op:frame.op, _bad:true, error:e.message}; }
+    payload.id = payload.id || frame.id;
+    payload.op = payload.op || frame.op;
+    let ok = false, obj;
+    try {
+      if(payload._bad) throw new Error('bad request JSON: '+payload.error);
+      obj = await relayHandlePayload(payload, ctx);
+      ok = obj && obj.ok !== false;
+    } catch(e){
+      obj = {ok:false, id:payload.id || frame.id, error:e && e.message ? e.message : String(e)};
+      ok = false;
+    }
+    if(payload.noReply || (ctx && ctx.noReply)) return true;
+    const frames = makeResponseFrames(payload.id || frame.id, ok, obj, ctx || {});
+    await sendFrames(frames, ctx || {});
+    return true;
+  }
+
+  async function handleIncomingText(text, ctx){
+    const frame = parseFrame(text);
+    if(!frame) return false;
+    if(frame.kind === 'res') return await handleResponseFrame(frame);
+    return await relayReceiveFrame(frame, ctx || {});
+  }
+
+  function acnetInstall(opts){
+    configure(opts || {});
+    if(opts && typeof opts.send === 'function') state.send = opts.send;
+    else if(root.transmit) state.send = t => root.transmit(t, false);
+    if(opts && opts.wrapOnRx === false) return Bridge;
+    if(typeof root.onRxPacket === 'function' && !root.onRxPacket.__omxWrapped){
+      state.oldOnRxPacket = root.onRxPacket;
+      const old = root.onRxPacket;
+      root.onRxPacket = async function OpenMailACNETWrappedOnRxPacket(text){
+        try {
+          if(looksLikeFrame(text)){
+            const handled = await handleIncomingText(text, {send:state.send});
+            if(handled) return;
+          }
+        } catch(e){ log('ACNET bridge onRx error: '+(e && e.message ? e.message : e), 'err'); }
+        return old.apply(this, arguments);
+      };
+      root.onRxPacket.__omxWrapped = true;
+      log('ACNET onRxPacket bridge installed', 'ok');
+    }
+    state.installed = true;
+    return Bridge;
+  }
+
+  async function clientList(user, scope, opts){
+    opts = opts || {};
+    const p = opts.prefix || userPrefix(user);
+    if(opts.direct) return listMailbox(opts.bin || state.cfg.sharedBin, p);
+    return request(opts.target || 'openmail', 'list', {op:'list', bin:opts.bin || state.cfg.sharedBin, prefix:p, scope:scope || 'mail', limit:opts.limit || 0}, opts);
+  }
+
+  async function clientPutOfficialMail(user, filenames, opts){
+    opts = opts || {};
+    const p = opts.prefix || userPrefix(user);
+    const full = (filenames || []).map(n => fullUserFilename(p, n));
+    const eid = opts.eid || full.map(fileFamilyIdFromFilename).find(Boolean) || '';
+    const expected = opts.expected || full.filter(n => /\.xc-|^xc-|u\.[^.]+\.xc-/.test(n)).length;
+    if(opts.direct){
+      return uploadFilesVerified(opts.bin || state.cfg.sharedBin, full, {content:'{}', prefix:p, eid, expected});
+    }
+    // For ACNET, transfer the file list as chunks, then commit once.
+    const mid = opts.mid || rid('mf');
+    const b64 = jsonToB64(full);
+    const chunk = opts.chunkSize || 66;
+    const parts = [];
+    for(let i=0; i<b64.length; i+=chunk) parts.push(b64.slice(i, i+chunk));
+    for(let i=0; i<parts.length; i++){
+      await request(opts.target || 'openmail', 'mailFrag', {op:'mailFrag', id:rid('fg'), mid, idx:i, total:parts.length, data:parts[i], prefix:p, eid, expected}, opts);
+    }
+    return request(opts.target || 'openmail', 'mailCommit', {op:'mailCommit', mid, prefix:p, eid, expected, bin:opts.bin || state.cfg.sharedBin}, opts);
+  }
+
+  function installOpenMailGlobals(){
+    // Non-invasive: adds a global store object usable by the standalone Open.Mail file.
+    root.OpenMailTransport = {
+      version: VERSION,
+      userPrefix,
+      listMailbox,
+      uploadDirect,
+      uploadFilesVerified,
+      verifyMailFamily,
+      clientList,
+      clientPutOfficialMail
+    };
+    log('Open.Mail transport globals installed', 'ok');
+    return Bridge;
+  }
+
+  const Bridge = {
+    version: VERSION,
+    configure,
+    log,
+    resolveWriteBin,
+    resolveReadBins,
+    activeBin: () => resolveWriteBin(state.cfg.sharedBin),
+    diagnostics: () => state.diagnostics.slice(),
+    userSlug,
+    userPrefix,
+    fullUserFilename,
+    fileNameOf,
+    parseMailboxListingText,
+    listMailbox,
+    uploadDirect,
+    uploadFilesVerified,
+    verifyFamilyFromFileNames,
+    verifyMailFamily,
+    filterListByScope,
+    parseEncFile,
+    expectedChunksFromHeaderName,
+    makeRequestFrames,
+    makeResponseFrames,
+    parseFrame,
+    looksLikeFrame,
+    handleIncomingText,
+    acnetInstall,
+    request,
+    clientList,
+    clientPutOfficialMail,
+    installOpenMailGlobals,
+    _state: state,
+    _test: {jsonToB64, b64ToJson, acceptChunk, delay}
+  };
+
+  root.OpenMailACNETBridge = Bridge;
+  if(typeof module !== 'undefined' && module.exports) module.exports = Bridge;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+
+<script id="openmail-universal-installer">
+(function installStandaloneOpenMailUniversalBridge(){
+  'use strict';
+  function setup(){
+    var B = window.OpenMailACNETBridge;
+    if(!B){ setTimeout(setup, 250); return; }
+    B.configure({sharedBin:'openmail', registryBin:'openmail', uploadVerifyRetries:10, listSettleRetries:6});
+    B.installOpenMailGlobals();
+    window.OpenMailUniversalBridgeReady = true;
+
+    // Use the same parser/uploader as the ACNET relay. This keeps standalone
+    // Open.Mail and ACNET client-mode on the exact same Filebin storage contract.
+    if(typeof window.listMailbox === 'function'){
+      window.listMailbox = async function universalStandaloneListMailbox(binId, prefix){
+        var files = await B.listMailbox(binId || 'openmail', prefix || '');
+        try { if(window.dbg) dbg('universal bridge list '+(binId||'openmail')+' → '+files.length+' file(s)', files.length?'ok':'info'); } catch(_) {}
+        return files;
+      };
+    }
+    if(typeof window.uploadToServer === 'function'){
+      window.uploadToServer = async function universalStandaloneUploadToServer(binId, filename, content, contentType){
+        await B.uploadDirect(binId || 'openmail', filename, content == null ? '{}' : content);
+        return true;
+      };
+    }
+    try { if(window.dbg) dbg('Universal ACNET/Open.Mail bridge loaded', 'ok'); } catch(_) {}
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup); else setTimeout(setup, 0);
+})();
+</script>
+
+
+<script id="openmail-acnet-crosscompat-contract">
+(function installOpenMailACNETCrossCompatContract(){
+  'use strict';
+  const VERSION='OPENMAIL_ACNET_CROSSCOMPAT_2026_07_16B_PREFIXED_NAMES';
+  function expectedPrefix(user){ return 'u.'+String(user||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')+'.'; }
+  window.OpenMailACNETCrossCompat={
+    version:VERSION,
+    logicalBin:OPENMAIL_LOGICAL_BIN,
+    activeBin:openMailActiveBin,
+    readBins:function(){ return openMailResolveReadBins(OPENMAIL_LOGICAL_BIN); },
+    userPrefix:userPrefix,
+    credentialPrefix:CRED_FN_PREFIX,
+    credentialChunkBudget:CRED_FN_CHUNK_BUDGET,
+    mailChunkBudget:CHUNK_RAW_BUDGET,
+    registryPrefix:'reg2-',
+    nativeACNETAvailable:function(){ return typeof window.omRpc==='function' && typeof window.omList==='function' && typeof window.omUpload==='function'; },
+    listViaACNET:async function(user,scope,opts){
+      opts=opts||{};
+      if(typeof window.omList!=='function') throw new Error('ACNET Open.Mail list bridge is not available in this page');
+      return await window.omList(OPENMAIL_LOGICAL_BIN,userPrefix(user),{scope:scope||'mail',limit:opts.limit||24,compact:opts.compact!==false});
+    },
+    uploadViaACNET:async function(filename,content,bin){
+      if(typeof window.omUpload!=='function') throw new Error('ACNET Open.Mail upload bridge is not available in this page');
+      return await window.omUpload(filename,content==null?'{}':content,bin||OPENMAIL_LOGICAL_BIN);
+    },
+    selfTest:function(){
+      const t=Date.UTC(2026,6,16,12,0,0),sample=openMailBinForDayOffset(0,t);
+      const bridgePrefix=window.OpenMailACNETBridge&&window.OpenMailACNETBridge.userPrefix?window.OpenMailACNETBridge.userPrefix('test_user'):'';
+      // Prefixed-name tolerance: an ACNET-written credential set listed with its
+      // full logical "u.<slug>." names must reconstruct here (mirrors ACNET).
+      let prefixedCredOk=false;
+      try{
+        const payload=strToB64Url(JSON.stringify({version:3,username:'xc_test',salt:'s',passwordHash:'h',pubKeyB64:'A'.repeat(43),encryptedPriv:'{}',createdAt:t,accountDay:accountDayKey(t),storage:'filename-chunks'}));
+        const total=Math.ceil(payload.length/CRED_FN_CHUNK_BUDGET)||1;
+        const names=[];
+        for(let i=0;i<total;i++) names.push('u.xc-test.ua-selftest0-'+i.toString(36)+'-'+total.toString(36)+'-'+payload.slice(i*CRED_FN_CHUNK_BUDGET,(i+1)*CRED_FN_CHUNK_BUDGET));
+        const rec=reconstructCredentialsFromFiles(names.map(n=>({name:n})),'xc_test');
+        prefixedCredOk=!!(rec&&rec.pubKeyB64==='A'.repeat(43)&&rec.username==='xc_test');
+      }catch(_){}
+      return {ok:sample===openMailBinForDayOffset(0,t)&&userPrefix('test_user')===expectedPrefix('test_user')&&bridgePrefix===userPrefix('test_user')&&CRED_FN_CHUNK_BUDGET===72&&CHUNK_RAW_BUDGET===75&&prefixedCredOk,active:openMailActiveBin(),sample,lookback:openMailResolveReadBins('openmail').length,prefix:userPrefix('test_user'),bridgePrefix,prefixedCredOk,nativeACNET:this.nativeACNETAvailable()};
+    }
+  };
+  try{ dbg('ACNET cross-compat contract active · '+openMailActiveBin(),'ok'); }catch(_){}
+})();
+</script>
+
+<script id="openmail-registry-username-integrity-fix14">
+(function installOpenMailRegistryUsernameIntegrityFix14(){
+  'use strict';
+  const VERSION='OPENMAIL_REGISTRY_USERNAME_INTEGRITY_FIX14_2026_07_16';
+  let sessionContacts=Object.create(null);
+
+  function S(v){ return String(v==null?'':v); }
+  function cleanRecordName(raw){
+    let n=S(raw).trim();
+    try{ n=decodeURIComponent(n); }catch(_){}
+    n=n.replace(/[?#].*$/,'').split('/').pop().trim().replace(/[).,;"'\]]+$/,'');
+    const pref=n.match(/^u\.[a-z0-9-]+\.(reg2?-.*)$/i);
+    if(pref) n=pref[1];
+    const at2=n.indexOf('reg2-');
+    const at1=n.indexOf('reg-');
+    if(at2>0) n=n.slice(at2);
+    else if(at1>0) n=n.slice(at1);
+    return n;
+  }
+  function strictRegistryUsername(encoded){
+    if(!/^[A-Za-z0-9_-]+$/.test(encoded||'')) return null;
+    let bytes,text;
+    try{
+      bytes=b64UrlToBytes(encoded);
+      text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+    }catch(_){ return null; }
+    const user=S(text).toLowerCase();
+    if(!/^[a-z0-9_-]{1,32}$/.test(user)) return null;
+    try{ if(strToB64Url(user)!==encoded) return null; }catch(_){ return null; }
+    return user;
+  }
+  function parseTimestamp36(part){
+    const raw=parseInt(part,36);
+    return Number.isFinite(raw)?(raw>100000000000?raw:raw*1000):0;
+  }
+  function strictParser(raw){
+    const fn=cleanRecordName(raw);
+    let m=fn.match(/^reg2-([a-z0-9]+)-(.+)$/i);
+    if(m){
+      const rest=m[2];
+      // X25519 raw public keys are exactly 32 bytes = 43 base64url chars.
+      // Split from the fixed tail instead of greedily splitting on hyphens.
+      if(rest.length<=44 || rest.charAt(rest.length-44)!=='-') return null;
+      const userPart=rest.slice(0,rest.length-44);
+      const pubB64=rest.slice(rest.length-43);
+      if(!/^[A-Za-z0-9_-]{43}$/.test(pubB64)) return null;
+      const uname=strictRegistryUsername(userPart);
+      if(!uname) return null;
+      return {ts:parseTimestamp36(m[1]),uname,pubB64,fn};
+    }
+    m=fn.match(/^reg-([a-z0-9]+)-(.+)$/i);
+    if(m){
+      const rest=m[2];
+      if(rest.length<=44 || rest.charAt(rest.length-44)!=='-') return null;
+      const uname=rest.slice(0,rest.length-44).toLowerCase();
+      const pubB64=rest.slice(rest.length-43);
+      if(!/^[a-z0-9_-]{1,32}$/.test(uname) || !/^[A-Za-z0-9_-]{43}$/.test(pubB64)) return null;
+      return {ts:parseTimestamp36(m[1]),uname,pubB64,fn};
+    }
+    return null;
+  }
+  function clearPersistentContacts(){
+    try{
+      const keys=[];
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k && k.startsWith('openmail_contacts_')) keys.push(k);
+      }
+      keys.forEach(k=>localStorage.removeItem(k));
+    }catch(_){}
+  }
+
+  parseRegistryFilename=strictParser;
+  try{ window.parseRegistryFilename=strictParser; }catch(_){}
+
+  // Contacts are session-only. This prevents corrupt or expired names from
+  // surviving a reload and also honors the no-saved-users policy.
+  loadContacts=function(){ return Object.assign({},sessionContacts); };
+  saveContacts=function(map){
+    sessionContacts=Object.create(null);
+    if(map && typeof map==='object'){
+      for(const [key,val] of Object.entries(map)){
+        const u=S((val&&val.uname)||key).toLowerCase();
+        if(!/^[a-z0-9_-]{1,32}$/.test(u) || !val || !/^[A-Za-z0-9_-]{43}$/.test(S(val.pubB64))) continue;
+        sessionContacts[u]={uname:u,pubB64:S(val.pubB64),ts:Number(val.ts||0),source:val.source||'session'};
+      }
+    }
+  };
+  _contactKey=function(){ return ''; };
+
+  const previousPurge=purgeSavedUserData;
+  purgeSavedUserData=function(){
+    try{ previousPurge(); }catch(_){}
+    sessionContacts=Object.create(null);
+    clearPersistentContacts();
+  };
+  clearPersistentContacts();
+
+  window.OpenMailRegistryUsernameIntegrity={
+    version:VERSION,
+    parse:strictParser,
+    selfTest:function(){
+      const user='test_user-1';
+      const userPart=strToB64Url(user);
+      const keys=['A'.repeat(43),'A'.repeat(10)+'-'+ 'B'.repeat(32),'_-'+ 'C'.repeat(41)];
+      const rows=keys.map(pub=>strictParser('reg2-'+Date.now().toString(36)+'-'+userPart+'-'+pub));
+      const bad=strictParser('reg2-'+Date.now().toString(36)+'-'+userPart+'-short');
+      return {ok:rows.every(r=>r&&r.uname===user&&r.pubB64.length===43)&&bad===null,rows:rows.map(r=>r&&r.uname),persistentContacts:false};
+    }
+  };
+  try{ dbg('Registry username integrity fix active · fixed-tail parser · no persistent contacts','ok'); }catch(_){}
+})();
+</script>
+
+</body>
+</html>
