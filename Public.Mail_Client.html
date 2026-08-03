@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Public.Mail — name-only public mail API-key fixed</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --accent-light: #eff6ff;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    #app { height: 100vh; display: flex; flex-direction: column; }
+    #login-view, #mail-view { flex: 1; overflow: hidden; }
+
+    #login-view {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      padding: 20px;
+    }
+    .login-box {
+      max-width: 440px;
+      width: 100%;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+      padding: 32px 28px;
+      border: 1px solid var(--border);
+    }
+    .login-box h1 {
+      font-size: 23px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    .login-box .sub {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 22px;
+    }
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      background: var(--surface);
+      color: var(--text);
+      transition: border 0.15s;
+    }
+    .form-group input:focus {
+      border-color: var(--accent);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .warning-box {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #92400e;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin: 14px 0 18px;
+    }
+    details.network-box {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+      background: var(--bg);
+    }
+    details.network-box summary {
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .network-inner { margin-top: 12px; }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .row > * { min-width: 0; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: var(--accent);
+      color: white;
+      width: 100%;
+      white-space: nowrap;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-secondary { background: var(--bg); color: var(--text-secondary); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: var(--danger-hover); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; width: auto; }
+    .login-foot {
+      margin-top: 18px;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+    code {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    #mail-view { display: none; flex-direction: row; }
+    .sidebar {
+      width: 230px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .sidebar-header {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--text);
+    }
+    .sidebar-id {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      word-break: break-word;
+      display: block;
+    }
+    .sidebar-id.clickable { cursor: pointer; }
+    .sidebar-id.clickable:hover { color: var(--accent); }
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px;
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.1s;
+      border-left: 3px solid transparent;
+      text-align: left;
+      width: 100%;
+    }
+    .nav-btn:hover { background: var(--bg); color: var(--text); }
+    .nav-btn.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      border-left-color: var(--accent);
+    }
+    .nav-btn .badge {
+      margin-left: auto;
+      background: var(--accent);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 0 8px;
+      border-radius: 12px;
+      min-width: 20px;
+      text-align: center;
+      line-height: 18px;
+    }
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .sidebar-footer .btn { width: 100%; font-size: 12px; padding: 7px; }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      min-width: 0;
+    }
+    .topbar {
+      padding: 12px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .topbar h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .topbar h3 small {
+      font-weight: 400;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .topbar-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .content { flex: 1; overflow-y: auto; padding: 16px 20px; }
+
+    .email-list, .card-list {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .email-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.1s;
+      gap: 12px;
+    }
+    .email-item:last-child { border-bottom: none; }
+    .email-item:hover { background: var(--bg); }
+    .email-item.unread { border-left: 3px solid var(--accent); }
+    .email-item.read { border-left: 3px solid transparent; }
+    .email-item.read .from, .email-item.read .subject { color: var(--text-secondary); }
+    .from { width: 150px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+    .subject { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .date { width: 100px; text-align: right; font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+    .email-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .email-actions button {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+    .email-actions button:hover { background: var(--danger); color: white; }
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-secondary);
+    }
+    .empty-state h4 { font-weight: 700; margin-bottom: 8px; color: var(--text); }
+    .empty-state p { font-size: 13px; max-width: 500px; margin: 0 auto 8px; }
+
+    .user-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .user-item:last-child { border-bottom: none; }
+    .user-name { font-weight: 700; }
+    .user-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.5);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--surface);
+      width: 100%;
+      max-width: 720px;
+      max-height: 90vh;
+      border-radius: var(--radius);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: fadeIn 0.15s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      font-size: 22px;
+      cursor: pointer;
+      color: var(--text-muted);
+      line-height: 1;
+      padding: 0 4px;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-body { flex: 1; overflow-y: auto; padding: 20px; }
+    .modal-meta {
+      display: flex;
+      gap: 20px;
+      padding: 8px 20px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text-secondary);
+      flex-wrap: wrap;
+    }
+    .modal-meta strong { color: var(--text); }
+    .modal-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      background: var(--bg);
+    }
+    .modal-footer .btn { width: auto; }
+    .message-body { white-space: pre-wrap; word-wrap: break-word; line-height: 1.7; }
+
+    .compose-field { margin-bottom: 16px; }
+    .compose-field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .compose-field input, .compose-field textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--surface);
+      color: var(--text);
+      transition: border 0.15s;
+    }
+    .compose-field input:focus, .compose-field textarea:focus {
+      border-color: var(--accent);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+    .compose-field textarea { min-height: 150px; resize: vertical; }
+    .compose-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .file-attach-area {
+      border: 2px dashed var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-top: 8px;
+    }
+    .file-attach-area:hover { border-color: var(--accent); background: var(--accent-light); }
+    .file-attach-area input[type="file"] { display: none; }
+    .attachments-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+    .att-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      gap: 10px;
+    }
+    .att-item .remove-att { background: transparent; border: none; color: var(--danger); cursor: pointer; font-size: 16px; }
+    .att-item .remove-att:hover { color: var(--danger-hover); }
+    .attachment-downloads {
+      margin-top: 18px;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+    }
+    .attachment-downloads h4 { font-size: 13px; margin-bottom: 8px; }
+    .attachment-downloads a {
+      display: inline-flex;
+      margin: 4px 6px 4px 0;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: var(--accent-light);
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 380px;
+      width: calc(100% - 40px);
+      pointer-events: none;
+    }
+    .toast {
+      background: var(--surface);
+      color: var(--text);
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      pointer-events: auto;
+      transform: translateX(120%);
+      transition: transform 0.25s ease;
+    }
+    .toast.show { transform: translateX(0); }
+    .toast.success { border-left: 4px solid var(--success); }
+    .toast.error { border-left: 4px solid var(--danger); }
+    .toast.warning { border-left: 4px solid var(--warning); }
+
+    @media (max-width: 700px) {
+      .sidebar { width: 62px; }
+      .sidebar-header h2, .sidebar-id, .nav-btn span.label, .nav-btn .badge { display: none; }
+      .nav-btn { justify-content: center; padding: 12px 0; font-size: 18px; }
+      .from { width: 88px; }
+      .date { width: 70px; }
+      .topbar h3 { font-size: 14px; }
+      .modal { max-width: 100%; margin: 10px; }
+      .row { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="login-view">
+    <div class="login-box">
+      <h1>✉️ Public.Mail</h1>
+      <div class="sub">Name-only public messaging · no passwords · no encryption</div>
+
+      <div class="form-group">
+        <label>Your name</label>
+        <input type="text" id="login-name" placeholder="e.g. username" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+        <div class="hint">Use letters, numbers, dot, dash, or underscore. Log in creates the name automatically when it does not exist.</div>
+      </div>
+
+      <details class="network-box" id="network-details">
+        <summary>Network setup</summary>
+        <div class="network-inner">
+          <div class="form-group" style="margin-bottom:10px">
+            <label>Public network URL / ID</label>
+            <input type="text" id="network-id" placeholder="Leave empty to create a new public network" autocomplete="off">
+            <div class="hint">Share this one network URL/ID with other users once. After that, everyone logs in by name.</div>
+          </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label>Backend edit key</label>
+            <input type="text" id="backend-key" placeholder="Public JsonStorage API key" autocomplete="off">
+            <div class="hint">JsonStorage requires this only to create/update the public network. It is not a user password; this public build pre-fills a demo key.</div>
+          </div>
+          <div class="row">
+            <button class="btn btn-secondary btn-sm" onclick="useNetworkId()">Use this network</button>
+            <button class="btn btn-secondary btn-sm" onclick="newNetwork()">Create new network</button>
+          </div>
+        </div>
+      </details>
+
+      <div class="warning-box">
+        This build is intentionally public: names, messages, and attachments are plaintext. Anyone with the network URL/ID can read or modify the mailboxes. There is no password and no encryption in this usability build.
+      </div>
+
+      <button class="btn" id="login-btn" onclick="doLogin()">📬 Enter Public.Mail</button>
+
+      <div class="login-foot">
+        jsonstorage.net backend · direct browser CORS · public directory + public mailboxes · public backend edit key<br>Requires live internet access. No local-only fallback is used.<br>
+        <span id="saved-network-note">No network selected yet.</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="mail-view">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>✉️ Public.Mail</h2>
+        <div class="sidebar-id" id="sb-name">…</div>
+        <div class="sidebar-id clickable" id="sb-network" onclick="copyNetworkId()" title="Click to copy network URL">network …</div>
+      </div>
+      <button class="nav-btn active" id="nav-in" onclick="showInbox()">
+        <span>📥</span> <span class="label">Inbox</span>
+        <span class="badge" id="ubadge" style="display:none">0</span>
+      </button>
+      <button class="nav-btn" id="nav-se" onclick="showSent()">
+        <span>📤</span> <span class="label">Sent</span>
+      </button>
+      <button class="nav-btn" id="nav-users" onclick="showUsers()">
+        <span>👥</span> <span class="label">Users</span>
+      </button>
+      <button class="nav-btn" onclick="openCompose()">
+        <span>✏️</span> <span class="label">Compose</span>
+      </button>
+      <div class="sidebar-footer">
+        <button class="btn btn-secondary btn-sm" onclick="doSync()">🔄 Sync</button>
+        <button class="btn btn-secondary btn-sm" onclick="copyName()">📋 Copy Name</button>
+        <button class="btn btn-secondary btn-sm" onclick="copyNetworkId()">🌐 Copy Network</button>
+        <button class="btn btn-danger btn-sm" onclick="doLogout()">🚪 Logout</button>
+      </div>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <h3 id="ptitle">Inbox <small id="sync-status"></small></h3>
+        <div class="topbar-actions">
+          <button class="btn btn-secondary btn-sm" onclick="doSync()">Sync</button>
+          <button class="btn btn-sm" onclick="openCompose()">Compose</button>
+        </div>
+      </div>
+      <div class="content" id="mcontent">
+        <div class="empty-state"><h4>Loading…</h4></div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="ov-read">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="r-subj">Subject</h3>
+        <button class="modal-close" onclick="closeRead()">×</button>
+      </div>
+      <div class="modal-meta">
+        <span><strong>From:</strong> <span id="r-from"></span></span>
+        <span><strong>To:</strong> <span id="r-to"></span></span>
+        <span><strong>Date:</strong> <span id="r-date"></span></span>
+        <span style="margin-left:auto;"><span id="r-att-count" style="color:var(--text-muted);font-size:12px;"></span></span>
+      </div>
+      <div class="modal-body" id="r-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" onclick="closeRead()">Close</button>
+        <button class="btn btn-secondary btn-sm" onclick="replyTo()">↩ Reply</button>
+        <button class="btn btn-danger btn-sm" onclick="delCurrent()">🗑 Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="ov-compose">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>✏️ Compose public mail</h3>
+        <button class="modal-close" onclick="closeCompose()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="compose-field">
+          <label>To — public name</label>
+          <input type="text" id="c-to" placeholder="e.g. username" autocomplete="off" list="user-list">
+          <datalist id="user-list"></datalist>
+          <div class="compose-hint">If the name does not exist yet, public.mail will create that mailbox automatically.</div>
+        </div>
+        <div class="compose-field">
+          <label>Subject</label>
+          <input type="text" id="c-subj" placeholder="(no subject)" autocomplete="off">
+        </div>
+        <div class="compose-field">
+          <label>Message</label>
+          <textarea id="compose-body" rows="6" placeholder="Your message…"></textarea>
+        </div>
+        <div class="compose-field">
+          <label>Attachments</label>
+          <div class="file-attach-area" onclick="document.getElementById('file-input').click()">
+            <div>📎 Click to attach files (max 48KB total)</div>
+            <input type="file" id="file-input" multiple onchange="handleAttachFiles(this)" style="display:none">
+          </div>
+          <div class="attachments-list" id="attachments-list"></div>
+          <div style="margin-top:6px;font-size:12px;color:var(--text-muted);" id="attach-size-info"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" onclick="closeCompose()">Cancel</button>
+        <button class="btn btn-sm" id="sendbtn" onclick="doSend()">📨 Send public mail</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+</div>
+
+<script>
+"use strict";
+
+// public.mail name-only build: no passwords, no encryption, no local-only mailbox fallback.
+// Primary backend: JsonStorage API, because it supports browser CORS and no-auth JSON create/update.
+const JSONSTORAGE_BASE = 'https://api.jsonstorage.net/v1/json';
+const LEGACY_JSONBLOB_BASE = 'https://jsonblob.com/api/jsonBlob';
+// JsonStorage now requires an apiKey for create/update. This public demo key is from
+// JsonStorage's own JSFiddle example. It is not a mail password and provides no privacy.
+const DEFAULT_JSONSTORAGE_API_KEY = '8969a471-87b7-4758-9f34-b090d396d9bb';
+const STATE_KEY = 'publicmail_name_state_v5_jsonstorage_apikey';
+const NETWORK_KEY = 'publicmail_network_id_v5_jsonstorage_apikey';
+const API_KEY_STORAGE_KEY = 'publicmail_backend_key_v5_jsonstorage_apikey';
+const CACHE_PREFIX = 'publicmail_cache_v5_';
+const MAX_ATTACH_SIZE = 48 * 1024; // keep JSONStorage items under its small free-item limit after base64 overhead
+const FETCH_TIMEOUT_MS = 12000;
+let activeBackendName = 'jsonstorage.net';
+
+let state = null;       // { dirId, userName, nameKey, blobId }
+let directory = null;   // { v, type, created, users: { nameKey: { name, blobId, created, updated } } }
+let lastNetworkError = '';
+let inbox = [];
+let sent = [];
+let currentFolder = 'inbox';
+let currentReadIdx = null;
+let attachments = [];
+
+const $ = id => document.getElementById(id);
+
+function toast(msg, type = '') {
+  const container = $('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  container.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 300);
+  }, 4200);
+}
+
+function setStatus(msg) {
+  const el = $('sync-status');
+  if (el) el.textContent = msg ? msg : '';
+}
+
+function escHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>'"]/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+  }[c] || c));
+}
+
+function canonName(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9._-]/g, '')
+    .replace(/[-_.]{2,}/g, '-')
+    .replace(/^[-_.]+|[-_.]+$/g, '')
+    .slice(0, 40);
+}
+
+function prettyName(raw, key) {
+  const cleaned = String(raw || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+  return cleaned || key;
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function makeDirectory() {
+  return {
+    v: 4,
+    type: 'public.mail.directory',
+    backend: 'jsonstorage.net',
+    created: nowIso(),
+    updated: nowIso(),
+    users: {}
+  };
+}
+
+function makeMailbox(name, key) {
+  return {
+    v: 4,
+    type: 'public.mail.mailbox',
+    backend: 'jsonstorage.net',
+    owner: name,
+    ownerKey: key,
+    created: nowIso(),
+    updated: nowIso(),
+    messages: []
+  };
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function getBackendApiKey() {
+  const input = $('backend-key');
+  const typed = input ? input.value.trim() : '';
+  const saved = localStorage.getItem(API_KEY_STORAGE_KEY) || '';
+  const key = typed || saved || DEFAULT_JSONSTORAGE_API_KEY;
+  if (input && !input.value) input.value = key;
+  if (key) localStorage.setItem(API_KEY_STORAGE_KEY, key);
+  return key;
+}
+
+function saveBackendApiKey() {
+  const key = getBackendApiKey();
+  if (!key) throw new Error('JsonStorage backend edit key is required for create/update');
+  localStorage.setItem(API_KEY_STORAGE_KEY, key);
+  return key;
+}
+
+function jsonStorageEditUrl(url, extra = {}) {
+  const key = saveBackendApiKey();
+  const u = new URL(url);
+  u.searchParams.set('apiKey', key);
+  Object.keys(extra || {}).forEach(k => {
+    if (extra[k] !== undefined && extra[k] !== null && String(extra[k]) !== '') u.searchParams.set(k, String(extra[k]));
+  });
+  return u.toString();
+}
+
+function makeStorageItemName(kind) {
+  return 'public-mail-' + kind + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+function findJsonBlobId(text) {
+  const x = String(text || '').trim();
+  const uuid = x.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  if (uuid) return uuid[0];
+  const numeric = x.match(/(?:jsonBlob\/|jsonblob\.com\/|^)([0-9]{8,})(?:\b|$)/i);
+  if (numeric) return numeric[1];
+  return '';
+}
+
+function parseStorageRef(ref) {
+  let x = String(ref || '').trim();
+  if (!x) return null;
+  x = x.replace(/^jsonstorage:/i, '').trim();
+
+  const full = x.match(/^https:\/\/api\.jsonstorage\.net\/v1\/json\/([^\/?#]+)\/([^\/?#]+)/i);
+  if (full) {
+    return {
+      kind: 'jsonstorage',
+      url: JSONSTORAGE_BASE + '/' + encodeURIComponent(decodeURIComponent(full[1])) + '/' + encodeURIComponent(decodeURIComponent(full[2])),
+      label: decodeURIComponent(full[1]) + '/' + decodeURIComponent(full[2])
+    };
+  }
+
+  const path = x.match(/^([A-Za-z0-9_-]{4,})\/([A-Za-z0-9_-]{4,})$/);
+  if (path) {
+    return {
+      kind: 'jsonstorage',
+      url: JSONSTORAGE_BASE + '/' + encodeURIComponent(path[1]) + '/' + encodeURIComponent(path[2]),
+      label: path[1] + '/' + path[2]
+    };
+  }
+
+  const legacy = findJsonBlobId(x);
+  if (legacy) {
+    return {
+      kind: 'jsonblob-legacy',
+      url: LEGACY_JSONBLOB_BASE + '/' + encodeURIComponent(legacy),
+      label: legacy
+    };
+  }
+  return null;
+}
+
+function normalizeStorageRef(ref) {
+  const parsed = parseStorageRef(ref);
+  return parsed ? parsed.url : '';
+}
+
+function isStorageRef(ref) {
+  return !!parseStorageRef(ref);
+}
+
+function describeNetworkError(e) {
+  const raw = e && e.name === 'AbortError' ? 'request timed out' : (e && e.message ? e.message : String(e));
+  if (/failed to fetch|networkerror|load failed|cors|cross-origin/i.test(raw)) {
+    return 'online storage unavailable: the browser blocked the request or the network is offline';
+  }
+  return raw;
+}
+
+function setStorageMode(mode, note = '') {
+  if (mode === 'online') setStatus(note || ('online · ' + activeBackendName));
+  else setStatus(note || 'error');
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      redirect: 'follow',
+      ...options,
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function readJsonResponse(response) {
+  const text = await response.text();
+  if (!text) return null;
+  try { return JSON.parse(text); }
+  catch (e) { throw new Error('Backend returned non-JSON data'); }
+}
+
+async function onlineCreateJsonStorage(data) {
+  activeBackendName = 'jsonstorage.net';
+  const itemName = makeStorageItemName(data && data.type === 'public.mail.directory' ? 'directory' : 'mailbox');
+  const r = await fetchWithTimeout(jsonStorageEditUrl(JSONSTORAGE_BASE, { name: itemName }), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Accept': 'application/json,text/plain,*/*' },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw new Error('Create failed: HTTP ' + r.status + (body ? ' — ' + body.slice(0, 160) : ''));
+  }
+  const body = await readJsonResponse(r).catch(() => null);
+  const uri = body && (body.uri || body.url || body.location);
+  const parsed = parseStorageRef(uri || r.headers.get('Location') || '');
+  if (!parsed || parsed.kind !== 'jsonstorage') throw new Error('Storage created data but did not return a usable JSONStorage URI');
+  setStorageMode('online');
+  return parsed.url;
+}
+
+async function onlineGetJsonStorage(url) {
+  activeBackendName = 'jsonstorage.net';
+  const r = await fetchWithTimeout(url, { headers: { 'Accept': 'application/json,text/plain,*/*' } });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('Fetch failed: HTTP ' + r.status);
+  const data = await readJsonResponse(r);
+  setStorageMode('online');
+  return data;
+}
+
+async function onlinePutJsonStorage(url, data) {
+  activeBackendName = 'jsonstorage.net';
+  const r = await fetchWithTimeout(jsonStorageEditUrl(url), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Accept': 'application/json,text/plain,*/*' },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw new Error('Update failed: HTTP ' + r.status + (body ? ' — ' + body.slice(0, 160) : ''));
+  }
+  // JsonStorage returns an acknowledgement; keep the object we just wrote as the source of truth.
+  await r.text().catch(() => '');
+  setStorageMode('online');
+  return data;
+}
+
+async function legacyJsonBlobGet(url) {
+  activeBackendName = 'JSONBlob legacy';
+  const r = await fetchWithTimeout(url, { headers: { 'Accept': 'application/json,text/plain,*/*' } });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('Legacy JSONBlob fetch failed: HTTP ' + r.status);
+  const data = await readJsonResponse(r);
+  setStorageMode('online');
+  return data;
+}
+
+async function legacyJsonBlobPut(url, data) {
+  activeBackendName = 'JSONBlob legacy';
+  const r = await fetchWithTimeout(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json,text/plain,*/*' },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) throw new Error('Legacy JSONBlob update failed: HTTP ' + r.status);
+  setStorageMode('online');
+  return data;
+}
+
+async function blobCreate(data) {
+  try {
+    return await onlineCreateJsonStorage(data);
+  } catch (e) {
+    lastNetworkError = describeNetworkError(e);
+    setStatus('error · ' + lastNetworkError);
+    throw new Error(lastNetworkError);
+  }
+}
+
+async function blobGet(ref) {
+  const parsed = parseStorageRef(ref);
+  if (!parsed) throw new Error('Invalid network/mailbox ID');
+  try {
+    if (parsed.kind === 'jsonstorage') return await onlineGetJsonStorage(parsed.url);
+    return await legacyJsonBlobGet(parsed.url);
+  } catch (e) {
+    lastNetworkError = describeNetworkError(e);
+    setStatus('error · ' + lastNetworkError);
+    throw new Error(lastNetworkError);
+  }
+}
+
+async function blobPut(ref, data) {
+  const parsed = parseStorageRef(ref);
+  if (!parsed) throw new Error('Invalid network/mailbox ID');
+  try {
+    if (parsed.kind === 'jsonstorage') return await onlinePutJsonStorage(parsed.url, data);
+    return await legacyJsonBlobPut(parsed.url, data);
+  } catch (e) {
+    lastNetworkError = describeNetworkError(e);
+    setStatus('error · ' + lastNetworkError);
+    throw new Error(lastNetworkError);
+  }
+}
+
+function savedNetworkId() {
+  return localStorage.getItem(NETWORK_KEY) || '';
+}
+
+function saveState() {
+  if (state) {
+    localStorage.setItem(STATE_KEY, JSON.stringify(state));
+    localStorage.setItem(NETWORK_KEY, state.dirId);
+  }
+  updateSavedNetworkNote();
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    if (!s || !s.dirId || !s.nameKey || !s.blobId) return false;
+    state = s;
+    return true;
+  } catch { return false; }
+}
+
+function cacheKey() {
+  return state ? CACHE_PREFIX + state.dirId + '_' + state.nameKey : '';
+}
+
+function saveCache() {
+  if (!state) return;
+  localStorage.setItem(cacheKey(), JSON.stringify({ inbox, sent }));
+}
+
+function loadCache() {
+  inbox = [];
+  sent = [];
+  if (!state) return;
+  try {
+    const raw = localStorage.getItem(cacheKey());
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    inbox = Array.isArray(data.inbox) ? data.inbox : [];
+    sent = Array.isArray(data.sent) ? data.sent : [];
+  } catch { inbox = []; sent = []; }
+}
+
+function clearSessionOnly() {
+  localStorage.removeItem(STATE_KEY);
+  state = null;
+  directory = null;
+  inbox = [];
+  sent = [];
+}
+
+function updateSavedNetworkNote() {
+  const note = $('saved-network-note');
+  const input = $('network-id');
+  const id = savedNetworkId();
+  if (input && id && !input.value) input.value = id;
+  if (!note) return;
+  if (id) note.innerHTML = 'Saved network URL: <code>' + escHtml(id) + '</code>';
+  else note.textContent = 'No network selected yet.';
+}
+
+async function ensureDirectoryId() {
+  const saved = savedNetworkId();
+  const inputEl = $('network-id');
+  const typedRaw = inputEl ? inputEl.value.trim() : '';
+  const typed = typedRaw ? normalizeStorageRef(typedRaw) : '';
+  const savedNorm = saved ? normalizeStorageRef(saved) : '';
+
+  // The login form auto-fills the saved network. Treat that as saved state, not as a hard user override.
+  const explicitTyped = !!(typedRaw && typed && typed !== savedNorm);
+  let dirId = typed || savedNorm;
+
+  if (dirId) {
+    let data = null;
+    try {
+      data = await blobGet(dirId);
+    } catch (e) {
+      if (explicitTyped) throw e;
+      console.warn('Saved network could not be opened; creating a fresh online network:', e);
+    }
+    if (data) {
+      if (!data.users || typeof data.users !== 'object') data.users = {};
+      if (!data.type) data.type = 'public.mail.directory';
+      directory = data;
+      localStorage.setItem(NETWORK_KEY, dirId);
+      if (inputEl) inputEl.value = dirId;
+      return dirId;
+    }
+    if (explicitTyped) throw new Error('Network ID not found');
+    localStorage.removeItem(NETWORK_KEY);
+  }
+
+  const fresh = makeDirectory();
+  dirId = await blobCreate(fresh);
+  directory = fresh;
+  localStorage.setItem(NETWORK_KEY, dirId);
+  if (inputEl) inputEl.value = dirId;
+  updateSavedNetworkNote();
+  return dirId;
+}
+
+async function refreshDirectory() {
+  if (!state || !state.dirId) return null;
+  const data = await blobGet(state.dirId);
+  if (!data) throw new Error('Public network not found');
+  if (!data.users || typeof data.users !== 'object') data.users = {};
+  if (!data.type) data.type = 'public.mail.directory';
+  directory = data;
+  return data;
+}
+
+async function saveDirectory() {
+  if (!state || !state.dirId || !directory) return;
+  directory.updated = nowIso();
+  await blobPut(state.dirId, directory);
+}
+
+async function ensureUser(name) {
+  const key = canonName(name);
+  if (!key || key.length < 2) throw new Error('Name must contain at least 2 valid characters');
+  const display = prettyName(name, key);
+  if (!directory || !directory.users) directory = makeDirectory();
+  if (directory.users[key] && directory.users[key].blobId) {
+    const u = directory.users[key];
+    return { nameKey: key, userName: u.name || display, blobId: u.blobId, created: false };
+  }
+  const mailbox = makeMailbox(display, key);
+  const blobId = await blobCreate(mailbox);
+  directory.users[key] = {
+    name: display,
+    key,
+    blobId,
+    created: nowIso(),
+    updated: nowIso()
+  };
+  await blobPut(state ? state.dirId : localStorage.getItem(NETWORK_KEY), directory);
+  return { nameKey: key, userName: display, blobId, created: true };
+}
+
+async function doLogin() {
+  saveBackendApiKey();
+  const rawName = $('login-name').value;
+  const key = canonName(rawName);
+  if (!key || key.length < 2) {
+    toast('Enter a usable public name first.', 'error');
+    return;
+  }
+  const btn = $('login-btn');
+  btn.disabled = true;
+  btn.textContent = 'Opening…';
+  try {
+    const dirId = await ensureDirectoryId();
+    state = { dirId, userName: prettyName(rawName, key), nameKey: key, blobId: '' };
+    const u = await ensureUser(rawName);
+    state = { dirId, userName: u.userName, nameKey: u.nameKey, blobId: u.blobId };
+    saveState();
+    loadCache();
+    enterMail();
+    toast(u.created ? 'Created public mailbox for ' + state.userName : 'Opened ' + state.userName, 'success');
+    await doSync();
+  } catch (e) {
+    toast('Login failed: ' + e.message, 'error');
+    setStatus('error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📬 Enter public.mail';
+  }
+}
+
+async function useNetworkId() {
+  saveBackendApiKey();
+  let id = $('network-id').value.trim();
+  id = normalizeStorageRef(id);
+  if (!id || !isStorageRef(id)) {
+    toast('Enter a valid JSONStorage network URL/ID.', 'error');
+    return;
+  }
+  try {
+    const data = await blobGet(id);
+    if (!data) throw new Error('Network not found');
+    if (!data.users || typeof data.users !== 'object') data.users = {};
+    localStorage.setItem(NETWORK_KEY, id);
+    $('network-id').value = id;
+    directory = data;
+    updateSavedNetworkNote();
+    toast('Network selected. Log in by name.', 'success');
+  } catch (e) {
+    toast('Could not use network: ' + e.message, 'error');
+  }
+}
+
+async function newNetwork() {
+  try {
+    saveBackendApiKey();
+    const dir = makeDirectory();
+    const id = await blobCreate(dir);
+    localStorage.setItem(NETWORK_KEY, id);
+    $('network-id').value = id;
+    directory = dir;
+    updateSavedNetworkNote();
+    toast('New public network created: ' + id, 'success');
+  } catch (e) {
+    toast('Could not create network: ' + e.message, 'error');
+  }
+}
+
+function doLogout() {
+  clearSessionOnly();
+  $('mail-view').style.display = 'none';
+  $('login-view').style.display = 'flex';
+  setStatus('logged out');
+  toast('Logged out. Network is still saved.', 'warning');
+  setTimeout(() => $('login-name').focus(), 50);
+}
+
+function enterMail() {
+  $('login-view').style.display = 'none';
+  $('mail-view').style.display = 'flex';
+  $('sb-name').textContent = '@' + state.nameKey;
+  $('sb-network').textContent = 'network ' + state.dirId;
+  updateDatalist();
+  showInbox();
+  setStorageMode('online');
+}
+
+async function doSync() {
+  if (!state) return;
+  setStatus('syncing…');
+  try {
+    await refreshDirectory();
+    const entry = directory.users[state.nameKey];
+    if (entry && entry.blobId && entry.blobId !== state.blobId) {
+      state.blobId = entry.blobId;
+      state.userName = entry.name || state.userName;
+      saveState();
+    }
+    updateDatalist();
+    const mailbox = await blobGet(state.blobId);
+    if (!mailbox) throw new Error('Mailbox not found');
+    const readMap = new Map(inbox.map(m => [m.id, !!m.read]));
+    const msgs = Array.isArray(mailbox.messages) ? mailbox.messages : [];
+    inbox = msgs.map(m => ({
+      id: m.id || String(m.date || Date.now()) + Math.random().toString(36).slice(2),
+      from: m.fromName || m.from || 'unknown',
+      fromKey: m.fromKey || canonName(m.fromName || m.from || ''),
+      to: m.toName || m.to || state.userName,
+      toKey: m.toKey || state.nameKey,
+      subject: m.subject || '(no subject)',
+      body: m.body || '',
+      date: m.date || Date.now(),
+      read: readMap.has(m.id) ? readMap.get(m.id) : false,
+      attachments: Array.isArray(m.attachments) ? m.attachments : [],
+      snippet: (m.body || '').replace(/\s+/g, ' ').slice(0, 90)
+    })).sort((a, b) => (b.date || 0) - (a.date || 0));
+    saveCache();
+    if (currentFolder === 'inbox') renderInbox();
+    if (currentFolder === 'sent') renderSent();
+    if (currentFolder === 'users') renderUsers();
+    updateBadge();
+    setStatus('synced · ' + inbox.length + ' msgs');
+  } catch (e) {
+    toast('Sync failed: ' + e.message, 'error');
+    setStatus('error');
+  }
+}
+
+async function appendMessageToMailbox(blobId, msg) {
+  const mailbox = await blobGet(blobId);
+  if (!mailbox) throw new Error('Recipient mailbox not found');
+  if (!Array.isArray(mailbox.messages)) mailbox.messages = [];
+  mailbox.messages.push(msg);
+  if (mailbox.messages.length > 250) mailbox.messages.splice(0, mailbox.messages.length - 250);
+  mailbox.updated = nowIso();
+  await blobPut(blobId, mailbox);
+}
+
+async function doSend() {
+  if (!state) return;
+  const rawTo = $('c-to').value.trim();
+  const toKey = canonName(rawTo);
+  const subject = $('c-subj').value.trim() || '(no subject)';
+  const body = $('compose-body').value;
+  if (!toKey || toKey.length < 2) { toast('Recipient public name required.', 'error'); return; }
+  if (!body.trim() && attachments.length === 0) { toast('Message body or attachments required.', 'error'); return; }
+  const btn = $('sendbtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  try {
+    await refreshDirectory();
+    let recipient = directory.users[toKey];
+    let autoCreated = false;
+    if (!recipient || !recipient.blobId) {
+      const u = await ensureUser(rawTo);
+      recipient = directory.users[u.nameKey];
+      autoCreated = true;
+    }
+    const msgId = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    const atts = attachments.map(a => ({ name: a.name, type: a.type, data: a.data, size: a.size }));
+    const msg = {
+      id: msgId,
+      fromName: state.userName,
+      fromKey: state.nameKey,
+      fromMailbox: state.blobId,
+      toName: recipient.name || rawTo,
+      toKey,
+      subject,
+      body,
+      date: Date.now(),
+      attachments: atts
+    };
+    await appendMessageToMailbox(recipient.blobId, msg);
+    sent.unshift({
+      id: msgId,
+      to: recipient.name || rawTo,
+      toKey,
+      subject,
+      body,
+      date: msg.date,
+      attachments: atts,
+      snippet: (body || '').replace(/\s+/g, ' ').slice(0, 90)
+    });
+    saveCache();
+    closeCompose();
+    if (currentFolder === 'sent') renderSent();
+    toast(autoCreated ? 'Recipient created and message sent.' : 'Message sent.', 'success');
+    setStatus('sent');
+  } catch (e) {
+    toast('Send failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📨 Send public mail';
+  }
+}
+
+function formatDate(ts) {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '';
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function setActiveNav(which) {
+  $('nav-in').classList.toggle('active', which === 'inbox');
+  $('nav-se').classList.toggle('active', which === 'sent');
+  $('nav-users').classList.toggle('active', which === 'users');
+}
+
+function setTitle(label) {
+  $('ptitle').innerHTML = escHtml(label) + ' <small id="sync-status"></small>';
+}
+
+function renderInbox() {
+  currentFolder = 'inbox';
+  setActiveNav('inbox');
+  setTitle('Inbox');
+  const box = $('mcontent');
+  if (!inbox.length) {
+    box.innerHTML = `
+      <div class="empty-state">
+        <h4>📭 Inbox empty</h4>
+        <p>Your public name is <code>@${escHtml(state.nameKey)}</code>.</p>
+        <p>Users on the same network can send to this name with no password.</p>
+        <p>Network ID: <code>${escHtml(state.dirId)}</code></p>
+      </div>`;
+    updateBadge();
+    return;
+  }
+  let html = '<div class="email-list">';
+  inbox.forEach((m, i) => {
+    const attIcon = (m.attachments && m.attachments.length) ? ' 📎' : '';
+    html += `
+      <div class="email-item ${m.read ? 'read' : 'unread'}" onclick="readMail(${i})">
+        <div class="from">${escHtml(m.from)}</div>
+        <div class="subject">${escHtml(m.subject)}${attIcon}</div>
+        <div class="date">${formatDate(m.date)}</div>
+        <div class="email-actions"><button onclick="event.stopPropagation();delInbox(${i})" title="Delete">🗑</button></div>
+      </div>`;
+  });
+  box.innerHTML = html + '</div>';
+  updateBadge();
+}
+
+function renderSent() {
+  currentFolder = 'sent';
+  setActiveNav('sent');
+  setTitle('Sent');
+  const box = $('mcontent');
+  if (!sent.length) {
+    box.innerHTML = '<div class="empty-state"><h4>📤 No sent messages</h4><p>Sent messages are kept locally in this browser.</p></div>';
+    return;
+  }
+  const sorted = [...sent].sort((a, b) => (b.date || 0) - (a.date || 0));
+  let html = '<div class="email-list">';
+  sorted.forEach((m) => {
+    const realIdx = sent.indexOf(m);
+    const attIcon = (m.attachments && m.attachments.length) ? ' 📎' : '';
+    html += `
+      <div class="email-item read" onclick="readSent(${realIdx})">
+        <div class="from" style="color:var(--text-muted);">→ ${escHtml(m.to)}</div>
+        <div class="subject">${escHtml(m.subject)}${attIcon}</div>
+        <div class="date">${formatDate(m.date)}</div>
+        <div class="email-actions"><button onclick="event.stopPropagation();delSent(${realIdx})" title="Delete">🗑</button></div>
+      </div>`;
+  });
+  box.innerHTML = html + '</div>';
+}
+
+function renderUsers() {
+  currentFolder = 'users';
+  setActiveNav('users');
+  setTitle('Users');
+  const box = $('mcontent');
+  const users = directory && directory.users ? Object.values(directory.users) : [];
+  if (!users.length) {
+    box.innerHTML = '<div class="empty-state"><h4>👥 No users yet</h4></div>';
+    return;
+  }
+  users.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+  let html = '<div class="card-list">';
+  users.forEach(u => {
+    const name = u.name || u.key || 'unknown';
+    const key = u.key || canonName(name);
+    html += `
+      <div class="user-item">
+        <div>
+          <div class="user-name">@${escHtml(key)} ${key === state.nameKey ? '<span style="color:var(--success);font-size:12px;">you</span>' : ''}</div>
+          <div class="user-meta">${escHtml(name)} · mailbox ${escHtml(String(u.blobId || '').slice(0, 8))}…</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="composeTo('${escHtml(key)}')">Message</button>
+      </div>`;
+  });
+  box.innerHTML = html + '</div>';
+}
+
+function showInbox() { renderInbox(); }
+function showSent() { renderSent(); }
+function showUsers() { if (directory) renderUsers(); else doSync().then(renderUsers); }
+
+function updateBadge() {
+  const count = inbox.filter(m => !m.read).length;
+  const badge = $('ubadge');
+  if (!badge) return;
+  if (count) { badge.textContent = count; badge.style.display = 'inline-block'; }
+  else { badge.style.display = 'none'; }
+}
+
+function updateDatalist() {
+  const dl = $('user-list');
+  if (!dl || !directory || !directory.users) return;
+  const users = Object.values(directory.users).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+  dl.innerHTML = users.map(u => `<option value="${escHtml(u.key || canonName(u.name))}">${escHtml(u.name || '')}</option>`).join('');
+}
+
+function readMail(idx) {
+  const m = inbox[idx];
+  if (!m) return;
+  currentReadIdx = { folder: 'inbox', index: idx };
+  openReadModal(m.from, m.to || state.userName, m.subject, m.body, m.date, m.attachments);
+  if (!m.read) {
+    m.read = true;
+    saveCache();
+    updateBadge();
+    renderInbox();
+  }
+}
+
+function readSent(idx) {
+  const m = sent[idx];
+  if (!m) return;
+  currentReadIdx = { folder: 'sent', index: idx };
+  openReadModal(state.userName, m.to, m.subject, m.body, m.date, m.attachments);
+}
+
+function openReadModal(from, to, subject, body, date, atts) {
+  $('r-subj').textContent = subject || '(no subject)';
+  $('r-from').textContent = from || 'unknown';
+  $('r-to').textContent = to || state.userName;
+  $('r-date').textContent = date ? new Date(date).toLocaleString() : '?';
+  const safeBody = '<div class="message-body">' + escHtml(body || '') + '</div>';
+  let attHtml = '';
+  if (atts && atts.length) {
+    attHtml = '<div class="attachment-downloads"><h4>Attachments</h4>';
+    atts.forEach((a, i) => {
+      const name = a.name || ('attachment-' + (i + 1));
+      const type = a.type || 'application/octet-stream';
+      const href = 'data:' + encodeURIComponent(type) + ';base64,' + (a.data || '');
+      attHtml += `<a href="${href}" download="${escHtml(name)}">📎 ${escHtml(name)} (${((a.size || 0)/1024).toFixed(1)} KB)</a>`;
+    });
+    attHtml += '</div>';
+  }
+  $('r-body').innerHTML = safeBody + attHtml;
+  $('r-att-count').textContent = atts && atts.length ? `📎 ${atts.length} attachment(s)` : '';
+  $('ov-read').classList.add('active');
+}
+
+function closeRead() {
+  $('ov-read').classList.remove('active');
+  currentReadIdx = null;
+}
+
+function delCurrent() {
+  if (!currentReadIdx) return;
+  if (currentReadIdx.folder === 'inbox') delInbox(currentReadIdx.index);
+  else delSent(currentReadIdx.index);
+  closeRead();
+}
+
+async function delInbox(idx) {
+  const m = inbox[idx];
+  if (!m) return;
+  inbox.splice(idx, 1);
+  saveCache();
+  renderInbox();
+  toast('Message deleted locally. Removing from server…', 'warning');
+  try {
+    const mailbox = await blobGet(state.blobId);
+    if (mailbox && Array.isArray(mailbox.messages)) {
+      mailbox.messages = mailbox.messages.filter(sm => sm.id !== m.id);
+      mailbox.updated = nowIso();
+      await blobPut(state.blobId, mailbox);
+      toast('Message removed from public mailbox.', 'success');
+    }
+  } catch (e) {
+    toast('Server delete failed: ' + e.message, 'error');
+  }
+}
+
+function delSent(idx) {
+  sent.splice(idx, 1);
+  saveCache();
+  if (currentFolder === 'sent') renderSent();
+  toast('Sent message deleted from this browser.', 'warning');
+}
+
+function replyTo() {
+  if (!currentReadIdx || currentReadIdx.folder !== 'inbox') return;
+  const m = inbox[currentReadIdx.index];
+  if (!m) return;
+  closeRead();
+  openCompose();
+  $('c-to').value = m.fromKey || canonName(m.from);
+  $('c-subj').value = (m.subject || '').startsWith('Re:') ? m.subject : 'Re: ' + (m.subject || '(no subject)');
+  $('compose-body').value = '\n\n> ' + (m.body || '').replace(/\n/g, '\n> ');
+}
+
+function composeTo(name) {
+  openCompose();
+  $('c-to').value = name;
+}
+
+function openCompose() {
+  $('c-to').value = '';
+  $('c-subj').value = '';
+  $('compose-body').value = '';
+  attachments = [];
+  renderAttachments();
+  $('ov-compose').classList.add('active');
+  setTimeout(() => $('c-to').focus(), 80);
+}
+
+function closeCompose() {
+  $('ov-compose').classList.remove('active');
+  attachments = [];
+  renderAttachments();
+  $('file-input').value = '';
+}
+
+function handleAttachFiles(input) {
+  const files = Array.from(input.files || []);
+  let totalSize = attachments.reduce((s, a) => s + a.size, 0);
+  for (const file of files) {
+    totalSize += file.size;
+    if (totalSize > MAX_ATTACH_SIZE) {
+      toast('Total attachment size exceeds 48 KB. JSONStorage free items are small.', 'error');
+      input.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      const base64 = String(e.target.result || '').split(',')[1] || '';
+      attachments.push({
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        data: base64,
+        size: file.size
+      });
+      renderAttachments();
+    };
+    reader.onerror = () => toast('Could not read attachment: ' + file.name, 'error');
+    reader.readAsDataURL(file);
+  }
+  input.value = '';
+}
+
+function removeAttachment(idx) {
+  attachments.splice(idx, 1);
+  renderAttachments();
+}
+
+function renderAttachments() {
+  const list = $('attachments-list');
+  const info = $('attach-size-info');
+  if (!attachments.length) {
+    list.innerHTML = '';
+    info.textContent = '';
+    return;
+  }
+  let html = '';
+  let total = 0;
+  attachments.forEach((a, i) => {
+    total += a.size;
+    html += `
+      <div class="att-item">
+        <span>📎 ${escHtml(a.name)} (${(a.size/1024).toFixed(1)} KB)</span>
+        <button class="remove-att" onclick="removeAttachment(${i})">×</button>
+      </div>`;
+  });
+  list.innerHTML = html;
+  info.textContent = `Total: ${(total/1024).toFixed(1)} KB / 48 KB`;
+}
+
+function copyText(text, label) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => toast(label + ' copied.', 'success')).catch(() => toast(label + ': ' + text, 'warning'));
+  } else {
+    toast(label + ': ' + text, 'warning');
+  }
+}
+
+function copyName() {
+  if (!state) return;
+  copyText(state.nameKey, 'Public name');
+}
+
+function copyNetworkId() {
+  const id = state ? state.dirId : savedNetworkId();
+  if (!id) { toast('No public network yet.', 'warning'); return; }
+  copyText(id, 'Network ID');
+}
+
+(async function init() {
+  getBackendApiKey();
+  updateSavedNetworkNote();
+  if (loadState()) {
+    loadCache();
+    enterMail();
+    await doSync();
+  } else {
+    const id = savedNetworkId();
+    if (id && $('network-id')) $('network-id').value = id;
+    setTimeout(() => $('login-name').focus(), 50);
+  }
+})();
+
+window.doLogin = doLogin;
+window.useNetworkId = useNetworkId;
+window.newNetwork = newNetwork;
+window.doLogout = doLogout;
+window.doSync = doSync;
+window.showInbox = showInbox;
+window.showSent = showSent;
+window.showUsers = showUsers;
+window.openCompose = openCompose;
+window.closeCompose = closeCompose;
+window.readMail = readMail;
+window.readSent = readSent;
+window.closeRead = closeRead;
+window.delCurrent = delCurrent;
+window.delInbox = delInbox;
+window.delSent = delSent;
+window.replyTo = replyTo;
+window.composeTo = composeTo;
+window.copyName = copyName;
+window.copyNetworkId = copyNetworkId;
+window.doSend = doSend;
+window.handleAttachFiles = handleAttachFiles;
+window.removeAttachment = removeAttachment;
+</script>
+</body>
+</html>
