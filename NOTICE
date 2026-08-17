@@ -1,0 +1,21 @@
+ACNET — NOTICE AND THIRD-PARTY ATTRIBUTION
+
+ACNET is distributed under GNU GPL v3.0. See LICENSE.
+
+Third-party software/notices included with this release:
+
+- ggwave — Copyright (c) 2020 Georgi Gerganov — MIT
+- ggwave Reed-Solomon component — Copyright © 2015 Mike Lubinets — MIT
+- Ooura FFT routines used by ggwave — Copyright Takuya OOURA, 1996-2001
+- pako — Copyright (C) 2014-2017 Vitaly Puzrin and Andrei Tuputcyn — MIT
+- zlib-derived pako source — zlib License; Jean-loup Gailly and Mark Adler
+- Emscripten-generated browser runtime/glue — upstream Emscripten licensing
+- Orbitron — SIL Open Font License 1.1
+- Share Tech Mono — SIL Open Font License 1.1
+- Cyrinx technical reference — upstream Apache License 2.0; ACNET's audited
+  CYRINX profile identifies itself as a clean-room JavaScript implementation.
+
+Full notices are in THIRD_PARTY_LICENSES/.
+
+Third-party names are used for attribution and technical identification only.
+No sponsorship, endorsement, certification, or affiliation is implied.

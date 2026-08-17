@@ -1,0 +1,13 @@
+Emscripten license notice
+
+Emscripten is available under two licenses, the MIT License and the
+University of Illinois/NCSA Open Source License.
+
+Copyright (c) 2010-2014 Emscripten authors, see upstream AUTHORS file.
+
+Upstream license:
+https://github.com/emscripten-core/emscripten/blob/main/LICENSE
+
+The ggwave JavaScript/WebAssembly browser build distributed inside ACNET
+contains generated Emscripten runtime/glue. This notice is included
+conservatively with the ACNET third-party notices.

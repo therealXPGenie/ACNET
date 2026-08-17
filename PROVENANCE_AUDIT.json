@@ -1,0 +1,301 @@
+{
+  "audit_date": "2026-08-17",
+  "artifact": "ACNET_R70_CYRINX_GGWAVE_LICENSED.html",
+  "artifact_sha256": "1a2aaa59c5f927076b255757b2445ce6be3f96424c322785a8f733af25e7cc4c",
+  "javascript": {
+    "script_blocks": 29,
+    "executable_blocks": 24,
+    "data_blocks": 5,
+    "syntax_ok": true,
+    "failures": []
+  },
+  "naming_checks": {
+    "GGwave_best_present": true,
+    "gibberlink_string_present": false
+  },
+  "third_party_components_accounted_for": [
+    "ggwave (MIT)",
+    "ggwave Reed-Solomon component (MIT)",
+    "Ooura FFT routines used by ggwave",
+    "pako (MIT)",
+    "zlib-derived pako source (zlib license)",
+    "Emscripten browser/WASM runtime notice",
+    "Cyrinx technical reference (Apache-2.0 upstream; ACNET clean-room JS profile)",
+    "Orbitron (SIL OFL 1.1)",
+    "Share Tech Mono (SIL OFL 1.1)"
+  ],
+  "absolute_url_count": 32,
+  "absolute_urls": [
+    "http://www.google.com/bot.html",
+    "https://api.allorigins.win/get?url=${encodeURIComponent(cleanUrl",
+    "https://api.allorigins.win/raw?url=${encodeURIComponent(cleanUrl",
+    "https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u",
+    "https://api.jsonstorage.net/v1/json",
+    "https://cors-anywhere.herokuapp.com/${u}",
+    "https://cors.eu.org/${u}",
+    "https://cors.lol/?url=${encodeURIComponent(u",
+    "https://cors.sh/?url=${encodeURIComponent(u",
+    "https://cors.x2u.in/${u}",
+    "https://corsproxy.io/?",
+    "https://corsproxy.io/?${encodeURIComponent(u",
+    "https://corsproxy.io/?url=",
+    "https://corsproxy.io/?url=${encodeURIComponent(u",
+    "https://en.wikipedia.org/wiki/Main_Page",
+    "https://example.com",
+    "https://example.com/",
+    "https://example.com/...",
+    "https://example.com/a",
+    "https://filebin.net/",
+    "https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap",
+    "https://gobetween.oklabs.org/${u}",
+    "https://jsonblob.com/api/jsonBlob",
+    "https://jsonblob.com/api/jsonBlob/1111111111111111111",
+    "https://jsonblob.com/api/jsonBlob/1234567890123456789",
+    "https://jsonblob.com/api/jsonBlob/9876543210987654321",
+    "https://old.reddit.com",
+    "https://proxy.cors.sh/${u}",
+    "https://r.jina.ai/${u}",
+    "https://thingproxy.freeboard.io/fetch/${u}",
+    "https://www.example.com",
+    "https://yacdn.org/proxy/${u}"
+  ],
+  "scripts": [
+    {
+      "index": 0,
+      "id": "acnet-browser-baseline-polyfills",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 11795,
+      "sha256": "a25886dd4d79e226f02b5fb27d72c774292c955ca2be4cf124160afc3ba305f2"
+    },
+    {
+      "index": 1,
+      "id": "acnet-pako-embedded",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 45990,
+      "sha256": "bf19270bfa96ba04d20cf8e638cb116857d608bed006088a6872fad076e92404"
+    },
+    {
+      "index": 2,
+      "id": null,
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 154067,
+      "sha256": "8b6c6a98d4eb2e3fc2bbab1eef8b9ffb285552e4211440d5f940eea202793c01"
+    },
+    {
+      "index": 3,
+      "id": null,
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 1352652,
+      "sha256": "4272c11359181820e47cc5befcff225a02bc55acffd8773578cf1225501ac4a3"
+    },
+    {
+      "index": 4,
+      "id": "openmail-corsless-upload-simplified-final",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 17761,
+      "sha256": "47ab23d1bbdd2018922e96b7989a04f07cc4d3be2bc252c5f8620d58cea01440"
+    },
+    {
+      "index": 5,
+      "id": "openmail-user-upload-reliability-diagnostic",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 912,
+      "sha256": "541fd71e3b93af2bc9cbb125d74dc189b42c9906f455e48d85d246746101d904"
+    },
+    {
+      "index": 6,
+      "id": "openmail-fast-login-inbox-send-reliable-diagnostic",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 1271,
+      "sha256": "be58e518d18d1d6078a9a7ee371f0c713b24e29bf45f08c0e8dc5867e2b09aaa"
+    },
+    {
+      "index": 7,
+      "id": null,
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 274,
+      "sha256": "40a04141e0cc80cc1d0922fcd0b98220f112bddccf50d91d68d55ba3e4f72aa6"
+    },
+    {
+      "index": 8,
+      "id": "openmail-compact-account-create-fix49-diagnostic",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 1846,
+      "sha256": "4cd6a6844c616dbb9b2186675d88a4cf4b3cf1182805dd2cdd5f34bd3b690fb2"
+    },
+    {
+      "index": 9,
+      "id": "acnet-ham-mode-legal-gate",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 17749,
+      "sha256": "4ee73d2f2756738d52687493576c65d46a3a857579fdc8e71bb12861c951e80d"
+    },
+    {
+      "index": 10,
+      "id": "acnet-ham-plaintext-web-relay",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 6547,
+      "sha256": "0410954a4b84bc6d12f5f5d2f0b9526dc433abec59b7defb54b9bbdb8de29e41"
+    },
+    {
+      "index": 11,
+      "id": "acnet-ham-public-mail",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 72892,
+      "sha256": "29841045a3c922aee84a68988ff6976dedd471a982d93c0a165ca00e5003143d"
+    },
+    {
+      "index": 12,
+      "id": "acnet-openmail-ham-create-fix34",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 9035,
+      "sha256": "d5669a2f33247edc7e035af899b05dcc57027652c5a24c3fb6dda66bf55b8986"
+    },
+    {
+      "index": 13,
+      "id": "acnet-openmail-hard-ham-block-fix35",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 12783,
+      "sha256": "fac66b0729461ce0d0b2a1c9a893db48b8b6df13a0343c83251488e20241c6f6"
+    },
+    {
+      "index": 14,
+      "id": "acnet-openmail-client-ham-block-fix37",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 12306,
+      "sha256": "9ea25a9cb549c757a6d0eadeb3e055d6b152303c204719daab65288da856b39b"
+    },
+    {
+      "index": 15,
+      "id": "acnet-ham-showfile-hard-block-fix39",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 8352,
+      "sha256": "d3a1c8192ef623dc515fb12b6a56a7e7b63c816906640cbdf95d65a85687013b"
+    },
+    {
+      "index": 16,
+      "id": null,
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 113,
+      "sha256": "398366380af87709826eb76c357565dab4ac88db1c21cd356aa1d9ac3eabb029"
+    },
+    {
+      "index": 17,
+      "id": "acnet-openmail-fix46-diagnostics",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 818,
+      "sha256": "830c69aed7e6abef6e35521730460f1ec7dfb9f4816d832be5b9e8fdad94088b"
+    },
+    {
+      "index": 18,
+      "id": "acnet-optional-callsign-browsing-fix50-diagnostic",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 1163,
+      "sha256": "37d7a3efc510a14741231792f52fbc09dabe744b654356c9a81f76992a2122e4"
+    },
+    {
+      "index": 19,
+      "id": "acnet-callsign-prefix-fix51-diagnostic",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 1417,
+      "sha256": "652863e4a2555a1a2bdebde9d16b8be93269741159fdc46c4f6dfe08136b4212"
+    },
+    {
+      "index": 20,
+      "id": "acnet-universal-sample-rate-manifest",
+      "type": "application/json",
+      "executable": false,
+      "chars": 1261,
+      "sha256": "92dfe5c0718017e4faa2c9d3716f3ce8738090c118f5b04d51450df6b8b279d4"
+    },
+    {
+      "index": 21,
+      "id": "acnet-cross-platform-runtime",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 1103,
+      "sha256": "45a0bfb7154185f91034fbe2ad4154daa04c193f4588529602e8ac5fe0fe9dd8"
+    },
+    {
+      "index": 22,
+      "id": "acnet-browser-final-manifest",
+      "type": "application/json",
+      "executable": false,
+      "chars": 863,
+      "sha256": "ecdf70d2f7a2e1e335ee24af43b69b340fa9804f10a480c312123e71960d1656"
+    },
+    {
+      "index": 23,
+      "id": "acnet-browser-runtime-final",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 3902,
+      "sha256": "9b82a9c2ecaeff5e090f4a8d0075890ba2320106a99ec61e6a54a679ad8b1058"
+    },
+    {
+      "index": 24,
+      "id": "acnet-generic-callsign-routing-manifest",
+      "type": "application/json",
+      "executable": false,
+      "chars": 379,
+      "sha256": "418500e77b55c8c2074c6dd592e627ae437ff5083a9412477c05be1bf8f4001f"
+    },
+    {
+      "index": 25,
+      "id": "acnet-showfile-retrocompat-selftest",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 1340,
+      "sha256": "bab64135f75ff143b917ae5fbaf7d092a654fd9260588a42e2b5e45635e02a0b"
+    },
+    {
+      "index": 26,
+      "id": "acnet-ggwave-mail-oneframe-manifest",
+      "type": "application/json",
+      "executable": false,
+      "chars": 427,
+      "sha256": "63b07107f7106e3fb862362554f6cf456c030f851543a5d4b3e9197ea079ccd3"
+    },
+    {
+      "index": 27,
+      "id": "acnet-2fsk-advanced-diagnostic",
+      "type": "javascript-default",
+      "executable": true,
+      "chars": 216,
+      "sha256": "7560d8b4fd0eed5e64d21e0a800abe44be78d9e97073ad3ebcb6f88e8076a6d3"
+    },
+    {
+      "index": 28,
+      "id": "acnet-sstv-video-ggwave-replacement",
+      "type": "application/json",
+      "executable": false,
+      "chars": 373,
+      "sha256": "cf62db3fff93a3d7460ff7d323f56ad661246bfb5c150c94d5f1e9716ea24bc5"
+    }
+  ],
+  "limitations": [
+    "Static provenance/license inventory; not legal advice.",
+    "No global commercial source-similarity database was available.",
+    "Re-audit when embedded code or dependencies change."
+  ]
+}

@@ -1,0 +1,21 @@
+Cyrinx upstream NOTICE reference
+
+Upstream project:
+https://github.com/dweekly/cyrinx
+
+Upstream license:
+https://github.com/dweekly/cyrinx/blob/main/LICENSE
+
+Upstream NOTICE:
+https://github.com/dweekly/cyrinx/blob/main/NOTICE
+
+The audited ACNET source explicitly describes the ACNET CYRINX browser profile
+as a clean-room JavaScript implementation informed by Cyrinx's documented
+bulk-PHY architecture, and states that it is not bit-for-bit wire compatible
+with upstream cyrinx_bulk.
+
+Therefore this release credits Cyrinx and includes Apache-2.0, but does not
+misrepresent upstream Cyrinx C source as bundled code. If a future ACNET
+release copies, ports, adapts, or otherwise incorporates copyrightable Cyrinx
+source, obtain the exact upstream NOTICE from the Cyrinx commit/version used
+and reproduce all applicable NOTICE material as required by Apache-2.0.
