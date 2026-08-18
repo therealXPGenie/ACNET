@@ -14,6 +14,6 @@ How to use:.
 5. Make sure there is an input and a output to each machine.
 6. Enjoy content by sending a request from the client to the relay via sound. (allowing you to surf or sharing images & data)
 
-Tutorial:  https://www.youtube.com/watch?v=E68Xg2qiul8&t=209s
+Tutorial:  https://youtu.be/E68Xg2qiul8?si=GcSWTUxQ9DWgwtyC
  
 LEGAL DISCLAIMER: Acnet has more than amateur radio in mind and that is why you should acknowledge local laws before using it. The author will not liable for damage and does not encourage criminality. If someone uses ACNET in a relay configuration to re-broadcast internet content, the liability for that content falls entirely on the user. The bearer of the file are the ones deciding what to transmit, just as a file-sharing software's developer isn't liable for the files users choose to share. Encrypting communications is prevented by the IEEE and FCC, Etc. Using High volume during your transmission can interfere with other channels.
