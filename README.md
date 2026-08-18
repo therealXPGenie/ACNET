@@ -26,7 +26,7 @@ section style="max-width:1200px;margin:40px auto;text-align:center;">
     box-shadow:0 0 20px rgba(0,255,136,.25);
   ">
     <iframe
-      src="[https://www.youtube.com/watch?v=E68Xg2qiul8&t=209s]"
+      src="https://www.youtube.com/watch?v=E68Xg2qiul8&t=209s"
       title="How to Use ACNET"
       style="position:absolute;inset:0;width:100%;height:100%;border:0;"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
