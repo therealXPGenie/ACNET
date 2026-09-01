@@ -14,7 +14,6 @@ represented as bundled.
 See ACKNOWLEDGEMENTS.md, NOTICE and THIRD_PARTY_LICENSES/ in the release.
 -->
 
-<!-- ACNET PD290 DIRTY-CHANNEL RECOVERY R1: bounded incremental VIS scanning, throttled fallback sync search, cooperative work cap, and automatic stale/false-lock recovery prevent noisy/occupied channels from freezing the SSTV decoder. -->
 <!-- ACNET TELEMETRY DUAL-PORT VALIDATION: production TTY wire/DSP preserved after regression testing; adds a deterministic A↔B production-path virtual sound-card/audio stress harness for encoder/modulator/demodulator/FEC/CRC validation. -->
 <!-- ACNET MANUAL TX/RX CURSORS R1: independent draggable PRE/data-tone headers for 2-FSK/4-FSK and MARK/SPACE for TTY; RX cursors feed production detectors, TX cursors feed production encoders; local persistence + per-side reset. -->
 <!-- ACNET CYRINX R70 BPSK ACK MAX RELIABILITY: R67 slow client turnaround retained. ACK copies are spaced beyond worst observed first-copy decode rejection time; relay ACK windows use ACK-R4-only decoding, full failed-frame flushing, safe soft combining, and ACK-only TX gain. -->
@@ -23926,59 +23925,6 @@ let _dNeedMore = false;
 let _dFallbackAllowed = false; // Fallback preview is delayed so VIS has priority.
 let _dListenStartedAt = 0;
 
-// PD290 dirty-channel recovery R1.
-// Noise used to make acquisition repeatedly rescan the complete audio history,
-// and a false line-sync lock could spin through the buffer without yielding.
-// Keep every receive pass bounded and abandon stale/false locks automatically.
-let _dVisScanCursor = 0;
-let _dLastAcquireSyncScanAt = 0;
-let _dSyncMisses = 0;
-let _dLastGoodSyncAt = 0;
-let _dLastDecodeProgressAt = 0;
-const PD_RX_GUARD = Object.freeze({
-  acquireBufferSec: 3.25,      // enough for VIS + overlap without unbounded noise history
-  visScanStepMs: 10,           // preserve existing VIS timing resolution
-  visScanBudgetMs: 320,        // maximum new start-time span checked per cooperative pass
-  acquireSyncIntervalMs: 220,  // throttle expensive fallback sync sweeps on noise
-  maxWorkLoops: 4,             // hard cooperative work budget per runner invocation
-  maxSyncMisses: 6,            // false-lock escape hatch
-  staleLockMs: 2600            // no valid line sync for this long => reacquire
-});
-
-function _pdResetRxTracking(keepFallback = false) {
-  _dSyncMisses = 0;
-  _dLastGoodSyncAt = 0;
-  _dLastDecodeProgressAt = 0;
-  _dVisScanCursor = 0;
-  _dLastAcquireSyncScanAt = 0;
-  if (!keepFallback) _dFallbackAllowed = false;
-}
-
-function _pdDropSamples(n) {
-  n = Math.max(0, Math.min(_dBuf.length, Math.floor(Number(n) || 0)));
-  if (!n) return;
-  _dBuf = _dBuf.slice(n);
-  _dVisScanCursor = Math.max(0, _dVisScanCursor - n);
-}
-
-function _pdTrimAcquireBuffer(maxSamples) {
-  if (_dBuf.length <= maxSamples) return;
-  _pdDropSamples(_dBuf.length - maxSamples);
-}
-
-function _pdLoseLock(reason) {
-  _dDecoding = false;
-  _pdLineFracCarry = 0;
-  _pdSamplePtr = 0;
-  _dSyncMisses = 0;
-  _dLastGoodSyncAt = 0;
-  _dLastDecodeProgressAt = 0;
-  _dFallbackAllowed = true;
-  _dVisScanCursor = 0;
-  if (scanLine) scanLine.style.display = 'none';
-  _dStat(reason || 'Channel unclear — reacquiring PD290 sync…');
-}
-
 const _dStat = m => { if (decStat) decStat.textContent = m; };
 const _dProg = p => { if (decProg) decProg.style.width = p + '%'; };
 
@@ -24298,24 +24244,13 @@ function _findPD290Vis(buf) {
   const sr = _dSR;
   const headerS = Math.round((300+10+300+30*10)/1000 * sr);
   if (buf.length < headerS) return null;
-
-  // Incremental VIS search: inspect only start positions that became possible
-  // since the previous pass. The old implementation rescanned up to 8 seconds
-  // from offset 0 on every microphone callback, which can freeze on noise.
-  const max = buf.length - headerS;
-  const step = Math.max(16, Math.floor(sr * (PD_RX_GUARD.visScanStepMs / 1000)));
-  if (_dVisScanCursor > max + step) _dVisScanCursor = Math.max(0, max - step);
-  let start = Math.max(0, Math.min(max, _dVisScanCursor));
-  const budget = Math.max(step, Math.floor(sr * (PD_RX_GUARD.visScanBudgetMs / 1000)));
-  const end = Math.min(max, start + budget);
+  const max = Math.min(buf.length - headerS, Math.round(sr * 8));
+  const step = Math.max(16, Math.floor(sr * 0.01));
   let best = null;
-  let lastChecked = start - step;
-  for (let off=start; off<=end; off += step) {
-    lastChecked = off;
+  for (let off=0; off<=max; off += step) {
     const v = _visAt(buf, off);
     if (v && v.code === PD.visCode && (!best || v.score > best.score)) best = { ...v, off };
   }
-  _dVisScanCursor = Math.min(max + step, Math.max(start, lastChecked + step));
   return best;
 }
 
@@ -24358,104 +24293,64 @@ function _procBuf(cooperative = false) {
   const lineExact = _lineSamp();
   const lineFloored = Math.max(1, Math.floor(lineExact));
   const reacqSpan = Math.floor(_dSR * 0.026);
-  const acquireMaxBuffer = Math.max(
-    Math.ceil(lineExact) * 2,
-    Math.floor(_dSR * PD_RX_GUARD.acquireBufferSec)
-  );
-  if (!_dDecoding) _pdTrimAcquireBuffer(acquireMaxBuffer);
+  const maxBuffer = Math.max(Math.ceil(lineExact) * 10, Math.floor(_dSR * 14));
+  if (_dBuf.length > maxBuffer && !_dDecoding) _dBuf = _dBuf.slice(_dBuf.length - maxBuffer);
 
   let processed = 0;
-  let workLoops = 0;
   const maxGroups = cooperative ? 1 : 3;
-  const maxLoops = cooperative ? PD_RX_GUARD.maxWorkLoops : Math.max(PD_RX_GUARD.maxWorkLoops, 8);
 
-  while (_dBuf.length >= lineFloored && processed < maxGroups && workLoops < maxLoops) {
-    workLoops++;
-
+  while (_dBuf.length >= lineFloored && processed < maxGroups) {
     // ── Phase 1: acquisition (VIS or sync-fallback) ──────────────────────
     if (!_dDecoding) {
       const vis = _findPD290Vis(_dBuf);
       if (vis) {
-        _pdDropSamples(vis.end);
+        _dBuf = _dBuf.slice(vis.end);
         const firstSync = _findSyncOffset(_dBuf, Math.min(_dBuf.length - 1, Math.floor(lineExact * 1.35)));
-        if (firstSync >= 0) _pdDropSamples(firstSync);
+        // FIX: >= 0 so sync at position 0 is handled correctly
+        if (firstSync >= 0) _dBuf = _dBuf.slice(firstSync);
         if (_dBuf.length < lineFloored) break;
-        _dDecoding = true;
-        _dLine = 0;
-        _pdLineFracCarry = 0;
-        _pdSamplePtr = 0;
-        _dSyncMisses = 0;
-        _dLastGoodSyncAt = performance.now();
-        _dLastDecodeProgressAt = _dLastGoodSyncAt;
-        _dInit();
-        _pdPrepareViewport();
+        _dDecoding = true; _dLine = 0; _pdLineFracCarry = 0; _pdSamplePtr = 0; _dInit(); _pdPrepareViewport();
         _dStat('VIS 94 detected — receiving clean live PD290 frame…');
         if (saveBtn) saveBtn.disabled = true;
       } else {
-        const now = performance.now();
-        const age = now - (_dListenStartedAt || now);
+        const age = performance.now() - (_dListenStartedAt || performance.now());
         if (age < 6500 && !_dFallbackAllowed) {
           _dStat('Waiting for PD290 VIS 94 / frame start…');
-          _pdTrimAcquireBuffer(acquireMaxBuffer);
+          if (_dBuf.length > maxBuffer) _dBuf = _dBuf.slice(_dBuf.length - maxBuffer);
           break;
         }
         _dFallbackAllowed = true;
-
-        // Fallback line-sync searching is deliberately rate-limited. On a
-        // noisy/occupied channel a full ~1-line sweep every audio callback is
-        // wasted CPU and was another source of apparent decoder freezes.
-        if (now - _dLastAcquireSyncScanAt < PD_RX_GUARD.acquireSyncIntervalMs) break;
-        _dLastAcquireSyncScanAt = now;
-
         const off = _findSyncOffset(_dBuf, Math.min(_dBuf.length - 1, Math.floor(lineExact * 1.15)));
         if (off < 0) {
-          _pdDropSamples(Math.max(1, Math.floor(lineExact / 8)));
-          _dStat('Channel busy/noisy — scanning for PD290 frame start…');
+          _dBuf = _dBuf.slice(Math.max(1, Math.floor(lineExact / 12)));
           break;
         }
-        if (off > 0) _pdDropSamples(off);
+        if (off > 0) _dBuf = _dBuf.slice(off);
         if (_dBuf.length < lineFloored) break;
-        _dDecoding = true;
-        _dLine = 0;
-        _pdLineFracCarry = 0;
-        _pdSamplePtr = 0;
-        _dSyncMisses = 0;
-        _dLastGoodSyncAt = now;
-        _dLastDecodeProgressAt = now;
-        _dInit();
-        _pdPrepareViewport();
-        _dStat('PD290 line-sync preview — monitoring lock quality…');
+        _dDecoding = true; _dLine = 0; _pdLineFracCarry = 0; _pdSamplePtr = 0; _dInit(); _pdPrepareViewport();
+        _dStat('PD290 line-sync preview — clean full frames require VIS 94 at start…');
         if (saveBtn) saveBtn.disabled = true;
       }
     }
 
     // ── Phase 2: compute line length without mutating fractional timing ───
+    // The fractional accumulator is committed only after the line is decoded.
     const lineS = _dDecoding ? _peekLineSamp() : lineFloored;
 
     // ── Phase 3: sync reacquisition (decoding mode only) ─────────────────
     if (_dDecoding) {
       const look = _dBuf.slice(0, Math.min(_dBuf.length, lineS + reacqSpan));
       const local = _findSyncOffset(look, reacqSpan);
-      const now = performance.now();
-      if (local >= 0 && local <= reacqSpan) {
-        if (local > 0) _pdDropSamples(local);
-        _dSyncMisses = 0;
-        _dLastGoodSyncAt = now;
-      } else {
-        _dSyncMisses++;
-
-        // Consume only a bounded amount, then yield. Never spin indefinitely
-        // through a dirty buffer in one task.
-        _pdDropSamples(Math.max(1, Math.floor(lineS * 0.25)));
-
-        const staleFor = _dLastGoodSyncAt ? (now - _dLastGoodSyncAt) : Infinity;
-        if (_dSyncMisses >= PD_RX_GUARD.maxSyncMisses || staleFor >= PD_RX_GUARD.staleLockMs) {
-          _pdLoseLock('Channel unclear — false/stale PD290 lock dropped; scanning again…');
-          _pdTrimAcquireBuffer(acquireMaxBuffer);
-          break;
-        }
+      if (local > 0 && local <= reacqSpan) {
+        _dBuf = _dBuf.slice(local);
+      } else if (local < 0) {
+        // No sync found — consume a small chunk and retry instead of decoding
+        // a full line of garbage. Timing accumulator was not advanced yet.
+        const skip = Math.max(1, Math.floor(lineS * 0.25));
+        _dBuf = _dBuf.slice(skip);
         continue;
       }
+      // local === 0: sync is exactly at start, nothing to slice — perfect
     }
 
     // ── Phase 4: consume the line ────────────────────────────────────────
@@ -24464,20 +24359,15 @@ function _procBuf(cooperative = false) {
     const committedLineS = _dDecoding ? _commitLineSamp() : lineS;
     if (_dBuf.length < committedLineS) break;
     const line = _dBuf.slice(0, committedLineS);
-    _pdDropSamples(committedLineS);
+    _dBuf = _dBuf.slice(committedLineS);
     _decodeLine(line);
     processed++;
-    _dLastDecodeProgressAt = performance.now();
     _dStat(`Decoding PD290 — line ${_dLine}/${DH} (${(_dLine/DH*100).toFixed(0)}%)`);
 
     if (_dLine >= DH) {
       _dDecoding = false;
       _pdLineFracCarry = 0;
       _pdSamplePtr = 0;
-      _dSyncMisses = 0;
-      _dLastGoodSyncAt = 0;
-      _dLastDecodeProgressAt = 0;
-      _dVisScanCursor = 0;
       if (decCtx && _dImg) decCtx.putImageData(_dImg, 0, 0);
       _dStat('✔ Conventional PD290 frame complete!');
       if (scanLine) scanLine.style.display = 'none';
@@ -24486,9 +24376,6 @@ function _procBuf(cooperative = false) {
       break;
     }
   }
-
-  // Immediate continuation is reserved for actual decoded progress. Dirty
-  // channels wait for the next audio callback so the UI/main thread stays live.
   return _dListening && (_dBuf.length >= lineFloored) && (processed >= maxGroups);
 }
 
@@ -24536,7 +24423,6 @@ async function _startListen() {
     _dAn   = _dCtx.createAnalyser();
     _dAn.fftSize = 2048; _dAn.smoothingTimeConstant = 0.4;
     const fd = new Float32Array(_dAn.frequencyBinCount);
-    const sessionAnalyser = _dAn;
     _dProc = _dCtx.createScriptProcessor((_dSR > 22050 ? 4096 : 2048), 1, 1);
     _dMic.connect(_dAn); _dMic.connect(_dProc); _dProc.connect(_dCtx.destination);
     _dProc.onaudioprocess = e => {
@@ -24550,11 +24436,9 @@ async function _startListen() {
       const freq = _zcFreq(buf.slice(0, Math.min(Math.floor(_dSR*0.05), buf.length)), _dSR);
       if (sigHz) sigHz.textContent = (freq>800&&freq<3000) ? Math.round(freq)+' Hz' : '\u2014 Hz';
       _scheduleProcBuf();
-      if (_dListening && _dAn === sessionAnalyser) {
-        sessionAnalyser.getFloatFrequencyData(fd); _drawSpec(fd);
-      }
+      _dAn.getFloatFrequencyData(fd); _drawSpec(fd);
     };
-    _dListening = true; _dDecoding = false; _pdLineFracCarry = 0; _pdSamplePtr = 0; _dBuf = []; _dProcScheduled=false; _dProcRunning=false; _dFallbackAllowed=false; _dListenStartedAt=performance.now(); _pdResetRxTracking(false); _dInit();
+    _dListening = true; _dDecoding = false; _pdLineFracCarry = 0; _pdSamplePtr = 0; _dBuf = []; _dProcScheduled=false; _dProcRunning=false; _dFallbackAllowed=false; _dListenStartedAt=performance.now(); _dInit();
     _dStat('Listening for profixed conventional PD290 VIS 94 / 1200 Hz sync — browser AGC/NS/EC off — SR '+Math.round(_dSR)+' Hz…');
     if (listenBtn)  listenBtn.disabled  = true;
     if (stopDecBtn) stopDecBtn.disabled = false;
@@ -24562,7 +24446,7 @@ async function _startListen() {
 }
 
 function _stopListen() {
-  _dListening = false; _dDecoding = false; _pdLineFracCarry = 0; _dProcScheduled=false; _dProcRunning=false; _dFallbackAllowed=false; _pdResetRxTracking(false);
+  _dListening = false; _dDecoding = false; _pdLineFracCarry = 0; _dProcScheduled=false; _dProcRunning=false; _dFallbackAllowed=false;
   if (_dProc)  { try {_dProc.disconnect();}  catch(_) {} _dProc  = null; }
   if (_dMic)   { try {_dMic.disconnect();  _dMic.mediaStream.getTracks().forEach(t=>t.stop());} catch(_) {} _dMic = null; }
   if (_dAn)    { try {_dAn.disconnect();}    catch(_) {} _dAn    = null; }
