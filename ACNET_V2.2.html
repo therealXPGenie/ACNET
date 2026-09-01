@@ -32,7 +32,6 @@ See ACKNOWLEDGEMENTS.md, NOTICE and THIRD_PARTY_LICENSES/ in the release.
 <!-- ACNET GGwave Mail One-Frame Retro Fix: compact legacy-readable X-ACNET-Mail envelope; exact 140B callsign/crypto/CRC budget; no ggwave truncation. -->
 <!-- ACNET Reliable CORS Pool Restore v5.43; 2FSK long-frame/ACK turnaround fix: airtime-balanced chunks + length-aware COLLECT watchdog.  ACNETGGwave payload/render fix: reference-sized GGwave web + ShowFile chunks, legacy CHK wire, callsign-safe requests, bare-Z4B recovery; Open.Mail Client Send Fix48. --><!-- ACNET R32 LONG-ARTICLE BROWSER: removes startup-frozen ~3061B response ceiling; 180k chunked web body cap, 9999 chunks, Z64 long-page compression with per-CHK CRC/ACK retry retained. -->
 <!-- ACNET HAM-3061 CAP: when HAM Mode is active, the complete relay browser response (HTTP/X-From headers + readable raw-text body) is hard-capped to 3061 UTF-8 bytes; normal browsing retains the long-article cap. -->
-<!-- ACNET V2.2 PD290 CHANNEL RECOVERY PATCH: PD290 acquisition is work-budgeted and incremental; false/stale sync locks are abandoned so an unclear/noisy channel cannot freeze the browser decoder. -->
 <html lang="en"><head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"/>
@@ -24537,6 +24536,7 @@ async function _startListen() {
     _dAn   = _dCtx.createAnalyser();
     _dAn.fftSize = 2048; _dAn.smoothingTimeConstant = 0.4;
     const fd = new Float32Array(_dAn.frequencyBinCount);
+    const sessionAnalyser = _dAn;
     _dProc = _dCtx.createScriptProcessor((_dSR > 22050 ? 4096 : 2048), 1, 1);
     _dMic.connect(_dAn); _dMic.connect(_dProc); _dProc.connect(_dCtx.destination);
     _dProc.onaudioprocess = e => {
@@ -24550,7 +24550,9 @@ async function _startListen() {
       const freq = _zcFreq(buf.slice(0, Math.min(Math.floor(_dSR*0.05), buf.length)), _dSR);
       if (sigHz) sigHz.textContent = (freq>800&&freq<3000) ? Math.round(freq)+' Hz' : '\u2014 Hz';
       _scheduleProcBuf();
-      _dAn.getFloatFrequencyData(fd); _drawSpec(fd);
+      if (_dListening && _dAn === sessionAnalyser) {
+        sessionAnalyser.getFloatFrequencyData(fd); _drawSpec(fd);
+      }
     };
     _dListening = true; _dDecoding = false; _pdLineFracCarry = 0; _pdSamplePtr = 0; _dBuf = []; _dProcScheduled=false; _dProcRunning=false; _dFallbackAllowed=false; _dListenStartedAt=performance.now(); _pdResetRxTracking(false); _dInit();
     _dStat('Listening for profixed conventional PD290 VIS 94 / 1200 Hz sync — browser AGC/NS/EC off — SR '+Math.round(_dSR)+' Hz…');
