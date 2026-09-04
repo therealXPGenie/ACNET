@@ -16,6 +16,7 @@ See ACKNOWLEDGEMENTS.md, NOTICE and THIRD_PARTY_LICENSES/ in the release.
 
 <!-- ACNET PD290 DIRTY-CHANNEL RECOVERY R1: bounded incremental VIS scanning, throttled fallback sync search, cooperative work cap, and automatic stale/false-lock recovery prevent noisy/occupied channels from freezing the SSTV decoder. -->
 <!-- ACNET TELEMETRY DUAL-PORT VALIDATION: production TTY wire/DSP preserved after regression testing; adds a deterministic A↔B production-path virtual sound-card/audio stress harness for encoder/modulator/demodulator/FEC/CRC validation. -->
+<!-- ACNET DTMF WEB R1: 12-key telephone-tone packet transport with CRC-16, streaming dual-tone detection, CHK/ACK relay browsing, and compact text-first page responses. -->
 <!-- ACNET MANUAL TX/RX CURSORS R1: independent draggable PRE/data-tone headers for 2-FSK/4-FSK and MARK/SPACE for TTY; RX cursors feed production detectors, TX cursors feed production encoders; local persistence + per-side reset. -->
 <!-- ACNET CYRINX R70 BPSK ACK MAX RELIABILITY: R67 slow client turnaround retained. ACK copies are spaced beyond worst observed first-copy decode rejection time; relay ACK windows use ACK-R4-only decoding, full failed-frame flushing, safe soft combining, and ACK-only TX gain. -->
 <!-- ACNET CYRINX R41 NATIVE COLLECT STATE: Cyrinx now drives ACNET decoder.state LOCK/COLLECT/DECODE, RX-busy timing and ACK re-arm safety. -->
@@ -988,6 +989,7 @@ else if (typeof exports === 'object')
           <select class="cs-sel" id="csMod">
             <option value="4fsk" selected="">4-FSK (fast)</option>
             <option value="2fsk">2-FSK (robust)</option>
+            <option value="dtmf">DTMF (telephone)</option>
             <option value="tty300">TTY (fast)</option>
             <option value="cyrinx">CYRINX (fastest)</option>
             <option value="ggwave">GGwave (best)</option>
@@ -1171,7 +1173,7 @@ else if (typeof exports === 'object')
   <div class="eyebrow">AUDIO COMMUNICATION NETWORK</div>
   <h1>📡 ACNET</h1>
   <p class="lead"><strong>A browser-based acoustic network and data-over-sound modem.</strong> ACNET moves text, files, messages, web responses, images, and low-resolution video through audio links using speakers, microphones, radios, telephones, or other sound interfaces.</p>
-  <div class="chips"><span>4-FSK</span><span>2-FSK</span><span>GGwave</span><span>Client / Relay</span><span>Offline-capable</span><span>Single-file HTML</span></div>
+  <div class="chips"><span>4-FSK</span><span>2-FSK</span><span>DTMF telephone</span><span>GGwave</span><span>Client / Relay</span><span>Offline-capable</span><span>Single-file HTML</span></div>
 </header>
 
 <section class="intro-grid">
@@ -1943,6 +1945,7 @@ const ACNET_NORMAL_FETCH_CHUNK_MAX_BYTES = 175;
 // prevents old low-speed adaptive paths from expanding to 120-180B.
 const ACNET_HAM_PAYLOAD_MAX_BYTES = 100;
 const ACNET_FSK_FRAME_OVERHEAD_BYTES = 12; // MAGIC+SYNC+LEN+LENCOPY+CRC+CRCCOPY
+const ACNET_DTMF_WEB_BODY_MAX = 1024; // text-first browsing cap for telephone links
 // FIX3: Byte caps alone were not enough at 20-30 sym/s: the log showed a
 // 152B wire frame staying on-air ~29s. Keep the 165/175B hard limits, but
 // also cap each FSK burst by airtime so noise/interruptions cost one short
@@ -1950,10 +1953,12 @@ const ACNET_FSK_FRAME_OVERHEAD_BYTES = 12; // MAGIC+SYNC+LEN+LENCOPY+CRC+CRCCOPY
 const ACNET_TX_BURST_TARGET_MS = 14500;
 const ACNET_TX_BURST_HARD_MS   = 17500;
 function _acnetBitsPerSecond(){
+  if (CFG && CFG.mod === 'dtmf') return DTMF_RAW_BPS;
   const sr = Math.max(1, (CFG && CFG.symbolRate) || 10);
   return sr * ((CFG && CFG.mod === '4fsk') ? 2 : 1);
 }
 function _acnetEstimatedTxMsFromBytes(wireBytes){
+  if (CFG && CFG.mod === 'dtmf') return _dtmfEstimateDurationMs(Math.max(0, wireBytes));
   const bps = Math.max(1, _acnetBitsPerSecond());
   return Math.ceil(((PRE_MS || 750) + (POST_MS || 900)) + (Math.max(0, wireBytes) * 8 / bps * 1000));
 }
@@ -2855,6 +2860,7 @@ function _ttyUsesProtectedFrames(mod = (typeof CFG !== 'undefined' && CFG ? CFG.
   return _isTTYMode(mod) && _ttyIsProtectedBaud(_ttyBaudForMode(mod));
 }
 function _effectivePayloadBps(mod = (typeof CFG !== 'undefined' && CFG ? CFG.mod : '4fsk')) {
+  if (mod === 'dtmf') return DTMF_RAW_BPS;
   if (_isTTYMode(mod)) return _ttyBaudForMode(mod) * TTY_DATA_BITS / (1 + TTY_DATA_BITS + TTY_STOP_BITS);
   if (mod === 'cyrinx') {
     try { return window.ACNET_CYRINX ? window.ACNET_CYRINX.nominalPayloadBps : 3000; } catch (_) { return 3000; }
@@ -3184,6 +3190,7 @@ function setCryptoPassphrase(passphrase) {
     _rxPktCounter = 0;
     _ggwTxCounter = 0;
     _ggwRxCounter = 0;
+    _dtmfResetCryptoCounters();
     _sessionSalt = 0;
     _ggwInvalidateSubkey();
     if (_cryptoBadge) _cryptoBadge.textContent = 'NO KEY';
@@ -3197,6 +3204,7 @@ function setCryptoPassphrase(passphrase) {
   _rxPktCounter = 0;
   _ggwTxCounter = 0;
   _ggwRxCounter = 0;
+  _dtmfResetCryptoCounters();
   _cryptoEnabled = true;
   if (_cryptoBadge) _cryptoBadge.textContent = '🔒 CRYPTO';
   addMsg('sys', '🔒 Crypto key set — session initialized');
@@ -3207,7 +3215,8 @@ function resetCryptoCounters() {
   _rxPktCounter = 0;
   _ggwTxCounter = 0;
   _ggwRxCounter = 0;
-  addMsg('sys', '🔁 Crypto counters reset (FSK + ggwave)');
+  _dtmfResetCryptoCounters();
+  addMsg('sys', '🔁 Crypto counters reset (FSK + ggwave + DTMF)');
 }
 
 /*═══════════════════════════════════════════════════════════════════════════
@@ -5102,6 +5111,314 @@ window.ACNET_SAMPLE_RATE_COMPAT = {
   }
 };
 
+/*═══════════════════════════════════════════════════════════════════════════
+  DTMF TELEPHONE MODE — ACNET packet transport + streaming receiver
+
+  Uses the universally available 12-key telephone set. Payload bytes are
+  represented as octal digits (0–7), so A/B/C/D keys are never required.
+  A protected start/end sequence, explicit length, sequence byte and CRC-16
+  keep keypad tones from being mistaken for ACNET traffic.
+═══════════════════════════════════════════════════════════════════════════*/
+const DTMF_ROW_FREQS = [697, 770, 852, 941];
+const DTMF_COL_FREQS = [1209, 1336, 1477];
+const DTMF_ALL_FREQS = DTMF_ROW_FREQS.concat(DTMF_COL_FREQS);
+const DTMF_KEYS = [
+  ['1','2','3'],
+  ['4','5','6'],
+  ['7','8','9'],
+  ['*','0','#']
+];
+const DTMF_KEY_FREQS = Object.freeze({
+  '1':[697,1209], '2':[697,1336], '3':[697,1477],
+  '4':[770,1209], '5':[770,1336], '6':[770,1477],
+  '7':[852,1209], '8':[852,1336], '9':[852,1477],
+  '*':[941,1209], '0':[941,1336], '#':[941,1477]
+});
+const DTMF_START = '*#*#*#*';
+const DTMF_END = '#*#';
+const DTMF_MAGIC = [0xD7, 0x4D];
+const DTMF_VERSION = 1;
+const DTMF_TONE_MS = 70;
+const DTMF_GAP_MS = 50;
+const DTMF_PRE_MS = 180;
+const DTMF_POST_MS = 280;
+const DTMF_RAW_BPS = 3 * 1000 / (DTMF_TONE_MS + DTMF_GAP_MS); // 25 raw bit/s
+const DTMF_MAX_PAYLOAD_BYTES = 2048;
+let _dtmfTxSeq = 0;
+let _dtmfTxCryptoCounter = 0;
+let _dtmfRxCryptoCounter = 0;
+
+function _dtmfResetCryptoCounters() {
+  _dtmfTxCryptoCounter = 0;
+  _dtmfRxCryptoCounter = 0;
+}
+
+function _dtmfEncryptText(text) {
+  if (!(typeof _cryptoEnabled !== 'undefined' && _cryptoEnabled && _cryptoKey)) return String(text);
+  const subkey = _ggwDeriveSubkey();
+  const bytes = _ENC.encode(String(text));
+  const nonce = makeNonce(_dtmfTxCryptoCounter, bytes.length);
+  const ks = chacha20(subkey, nonce, bytes.length);
+  const encrypted = new Uint8Array(bytes.length);
+  for (let i=0; i<bytes.length; i++) encrypted[i] = bytes[i] ^ ks[i];
+  const tagHex = _ggwBytesToHex(_ggwMakeTag(ks, encrypted));
+  const framed = 'DTC:' + (_dtmfTxCryptoCounter >>> 0).toString(16) + ':' + uint8ToBase64(encrypted) + ':' + tagHex;
+  _dtmfTxCryptoCounter = (_dtmfTxCryptoCounter + 1) >>> 0;
+  return framed;
+}
+
+function _dtmfDecryptText(text) {
+  if (!(typeof _cryptoEnabled !== 'undefined' && _cryptoEnabled && _cryptoKey)) return String(text);
+  const m = String(text).match(/^DTC:([0-9a-fA-F]+):([A-Za-z0-9+/=]+):([0-9A-Fa-f]{8})$/);
+  if (!m) return String(text);
+  const explicit = parseInt(m[1], 16) >>> 0;
+  const encrypted = base64ToUint8(m[2]);
+  if (!encrypted) throw new Error('DTMF crypto base64 invalid');
+  const subkey = _ggwDeriveSubkey();
+  let plain = _ggwTryCounter(subkey, explicit, encrypted, m[3].toUpperCase());
+  let winner = explicit;
+  if (!plain) {
+    const expected = (_dtmfRxCryptoCounter + 1) >>> 0;
+    for (let d=0; d<=16 && !plain; d++) {
+      const candidates = d ? [(expected+d)>>>0, (expected-d)>>>0] : [expected];
+      for (const c of candidates) {
+        if (c === explicit) continue;
+        plain = _ggwTryCounter(subkey, c, encrypted, m[3].toUpperCase());
+        if (plain) { winner = c; break; }
+      }
+    }
+  }
+  if (!plain) throw new Error('DTMF crypto authentication failed');
+  _dtmfRxCryptoCounter = winner;
+  return plain;
+}
+
+function _dtmfBytesToDigits(bytes) {
+  let acc = 0, bits = 0, out = '';
+  for (let i=0; i<bytes.length; i++) {
+    acc = (acc << 8) | bytes[i]; bits += 8;
+    while (bits >= 3) {
+      bits -= 3; out += String((acc >>> bits) & 7);
+      acc &= bits ? ((1 << bits) - 1) : 0;
+    }
+  }
+  if (bits) out += String((acc << (3-bits)) & 7);
+  return out;
+}
+
+function _dtmfDigitsToBytes(digits) {
+  let acc = 0, bits = 0;
+  const out = [];
+  for (let i=0; i<digits.length; i++) {
+    const n = digits.charCodeAt(i) - 48;
+    if (n < 0 || n > 7) throw new Error('non-octal DTMF payload');
+    acc = (acc << 3) | n; bits += 3;
+    while (bits >= 8) {
+      bits -= 8; out.push((acc >>> bits) & 255);
+      acc &= bits ? ((1 << bits) - 1) : 0;
+    }
+  }
+  return new Uint8Array(out);
+}
+
+function _dtmfBuildFrame(text, seq = 0, useCrypto = true) {
+  const wireText = useCrypto ? _dtmfEncryptText(String(text)) : String(text);
+  const payload = _ENC.encode(wireText);
+  if (payload.length > DTMF_MAX_PAYLOAD_BYTES) throw new Error('DTMF packet exceeds ' + DTMF_MAX_PAYLOAD_BYTES + ' bytes');
+  const frame = new Uint8Array(payload.length + 8);
+  frame[0] = DTMF_MAGIC[0]; frame[1] = DTMF_MAGIC[1]; frame[2] = DTMF_VERSION;
+  frame[3] = seq & 255; frame[4] = (payload.length >>> 8) & 255; frame[5] = payload.length & 255;
+  frame.set(payload, 6);
+  const crc = crc16(frame.subarray(0, 6 + payload.length));
+  frame[6 + payload.length] = (crc >>> 8) & 255;
+  frame[7 + payload.length] = crc & 255;
+  return frame;
+}
+
+function _dtmfParseFrame(frame, useCrypto = true) {
+  if (!frame || frame.length < 8) throw new Error('DTMF frame too short');
+  if (frame[0] !== DTMF_MAGIC[0] || frame[1] !== DTMF_MAGIC[1]) throw new Error('DTMF magic mismatch');
+  if (frame[2] !== DTMF_VERSION) throw new Error('unsupported DTMF version');
+  const len = (frame[4] << 8) | frame[5];
+  if (len > DTMF_MAX_PAYLOAD_BYTES || frame.length < len + 8) throw new Error('DTMF length invalid');
+  const end = 6 + len;
+  const expected = (frame[end] << 8) | frame[end+1];
+  const actual = crc16(frame.subarray(0, end));
+  if (actual !== expected) throw new Error('DTMF CRC mismatch');
+  const wireText = _DEC.decode(frame.subarray(6, end));
+  const text = useCrypto ? _dtmfDecryptText(wireText) : wireText;
+  return {text, bytes:_ENC.encode(text), seq:frame[3], wireBytes:len, crc:actual};
+}
+
+function _dtmfFrameSymbols(text, seq = 0, useCrypto = true) {
+  const frame = _dtmfBuildFrame(text, seq, useCrypto);
+  return {frame, symbols:DTMF_START + _dtmfBytesToDigits(frame) + DTMF_END};
+}
+
+function _dtmfEstimateDurationMs(payloadBytes) {
+  const frameBytes = Math.max(0, Number(payloadBytes)||0) + 8;
+  const digits = Math.ceil(frameBytes * 8 / 3);
+  return DTMF_PRE_MS + (DTMF_START.length + digits + DTMF_END.length) * (DTMF_TONE_MS + DTMF_GAP_MS) + DTMF_POST_MS;
+}
+
+function _dtmfRenderSymbols(symbols, sampleRate, amplitude = 0.24) {
+  const sr = Math.max(8000, Number(sampleRate) || 44100);
+  const toneN = Math.round(sr * DTMF_TONE_MS / 1000);
+  const gapN = Math.round(sr * DTMF_GAP_MS / 1000);
+  const preN = Math.round(sr * DTMF_PRE_MS / 1000);
+  const postN = Math.round(sr * DTMF_POST_MS / 1000);
+  const pcm = new Float32Array(preN + symbols.length * (toneN + gapN) + postN);
+  const rampN = Math.max(8, Math.round(sr * 0.006));
+  let p = preN;
+  for (const key of symbols) {
+    const pair = DTMF_KEY_FREQS[key];
+    if (!pair) throw new Error('invalid DTMF key ' + key);
+    let pr = 0, pc = 0;
+    const srStep = 2*Math.PI*pair[0]/sr, scStep = 2*Math.PI*pair[1]/sr;
+    for (let i=0; i<toneN; i++) {
+      const edge = Math.min(1, i/rampN, (toneN-1-i)/rampN);
+      const env = 0.5 - 0.5*Math.cos(Math.PI*Math.max(0, edge));
+      pcm[p+i] = amplitude * env * (Math.sin(pr) + Math.sin(pc));
+      pr += srStep; pc += scStep;
+    }
+    p += toneN + gapN;
+  }
+  return pcm;
+}
+
+function encodeDTMF(text) {
+  const seq = (_dtmfTxSeq = (_dtmfTxSeq + 1) & 255);
+  const built = _dtmfFrameSymbols(text, seq, true);
+  const sampleRate = (actx && actx.sampleRate) || SR || 44100;
+  const pcm = _dtmfRenderSymbols(built.symbols, sampleRate, Math.max(0.08, Math.min(0.34, (CFG.volume || 0.85) * 0.28)));
+  const buf = actx.createBuffer(1, pcm.length, sampleRate);
+  buf.getChannelData(0).set(pcm);
+  return {buf, duration:pcm.length/sampleRate, bytes:built.frame.length, symbols:built.symbols.length, seq};
+}
+
+class _ACNETDTMFReceiver {
+  constructor(onFrame) { this.onFrame = onFrame; this.reset(); }
+  reset(frameOnly = false) {
+    this.collecting = false; this.sync = ''; this.digits = ''; this.end = '';
+    this.frameStartedAt = 0; this.lastSymbolAt = 0; this.lastError = '';
+    if (!frameOnly) {
+      this.carry = new Float32Array(0); this.lastCandidate = null; this.stable = 0;
+      this.active = null; this.release = 0; this.frames = 0; this.symbols = 0;
+    }
+  }
+  _power(samples, off, n, freq) {
+    if (!this.hann || this.hann.length!==n || this.hannSR!==SR) {
+      this.hann=new Float32Array(n); this.hannSum=0; this.hannSR=SR;
+      for(let i=0;i<n;i++){const w=0.5-0.5*Math.cos(2*Math.PI*i/(n-1));this.hann[i]=w;this.hannSum+=w;}
+    }
+    const coeff=2*Math.cos(2*Math.PI*freq/SR);
+    let q0=0,q1=0,q2=0;
+    for(let i=0;i<n;i++){q0=coeff*q1-q2+samples[off+i]*this.hann[i];q2=q1;q1=q0;}
+    return Math.max(0,q1*q1+q2*q2-coeff*q1*q2)/Math.max(1,this.hannSum*this.hannSum);
+  }
+  _candidate(samples, off, n) {
+    const rp=DTMF_ROW_FREQS.map(f=>this._power(samples,off,n,f));
+    const cp=DTMF_COL_FREQS.map(f=>this._power(samples,off,n,f));
+    let ri=0, ci=0;
+    for(let i=1;i<rp.length;i++) if(rp[i]>rp[ri])ri=i;
+    for(let i=1;i<cp.length;i++) if(cp[i]>cp[ci])ci=i;
+    const rs=rp.slice().sort((a,b)=>b-a), cs=cp.slice().sort((a,b)=>b-a);
+    const row=rp[ri], col=cp[ci], floor=0.000045;
+    if (row<floor || col<floor) return null;
+    if (row/Math.max(1e-12,rs[1])<2.3 || col/Math.max(1e-12,cs[1])<2.3) return null;
+    const twist=row/col;
+    if (twist<0.18 || twist>5.5) return null;
+    return DTMF_KEYS[ri][ci];
+  }
+  _consumeSymbol(sym) {
+    this.symbols++;
+    if (!this.collecting) {
+      this.sync=(this.sync+sym).slice(-DTMF_START.length);
+      if (this.sync===DTMF_START) {
+        this.collecting=true; this.digits=''; this.end=''; this.frameStartedAt=Date.now(); this.lastSymbolAt=this.frameStartedAt;
+        try { setSBadge('lock','DTMF FRAME'); rxMode.textContent='DTMF RECEIVING'; } catch(_) {}
+      }
+      return;
+    }
+    this.lastSymbolAt=Date.now();
+    if (Date.now()-this.frameStartedAt>900000 || this.digits.length>5600) {
+      this.lastError='DTMF frame timeout/overflow'; this.reset(true); return;
+    }
+    if (!this.end && /^[0-7]$/.test(sym)) { this.digits += sym; return; }
+    if (!this.end && sym==='#') { this.end='#'; return; }
+    if (this.end==='#' && sym==='*') { this.end='#*'; return; }
+    if (this.end==='#*' && sym==='#') { this._finish(); return; }
+    this.lastError='invalid DTMF framing'; this.reset(true);
+    this._consumeSymbol(sym);
+  }
+  _finish() {
+    try {
+      const parsed=_dtmfParseFrame(_dtmfDigitsToBytes(this.digits), true);
+      if (this.onFrame) this.onFrame(parsed);
+    } catch(e) {
+      this.lastError=e && e.message ? e.message : String(e);
+      try { addMsg('sys','⚠ DTMF packet rejected: '+this.lastError); setSBadge('scan','DTMF SCAN'); } catch(_) {}
+    }
+    this.reset(true);
+  }
+  _observe(cand) {
+    if (cand===this.lastCandidate) this.stable++; else { this.lastCandidate=cand; this.stable=1; }
+    if (cand===null) {
+      if (this.active && ++this.release>=1) { const s=this.active; this.active=null; this.release=0; this._consumeSymbol(s); }
+      return;
+    }
+    this.release=0;
+    if (this.stable<2) return;
+    if (!this.active) { this.active=cand; return; }
+    if (cand!==this.active) { const s=this.active; this.active=cand; this._consumeSymbol(s); }
+  }
+  push(chunk) {
+    if (!chunk || !chunk.length) return;
+    if (this.collecting && this.lastSymbolAt && Date.now()-this.lastSymbolAt>5000) {
+      this.lastError='DTMF frame stalled'; this.reset(true);
+    }
+    const merged=new Float32Array(this.carry.length+chunk.length);
+    merged.set(this.carry); merged.set(chunk,this.carry.length);
+    const win=Math.max(160,Math.round(SR*0.040)), hop=Math.max(80,Math.round(SR*0.020));
+    let off=0;
+    while(off+win<=merged.length) { this._observe(this._candidate(merged,off,win)); this.frames++; off+=hop; }
+    this.carry=merged.slice(off);
+  }
+  feedSymbols(symbols) { for(const s of String(symbols)) this._consumeSymbol(s); }
+  status() { return {collecting:this.collecting,digits:this.digits.length,frames:this.frames,symbols:this.symbols,lastError:this.lastError}; }
+}
+
+const ACNET_DTMF_RX = new _ACNETDTMFReceiver(parsed => {
+  try { setSBadge('ok','DTMF OK'); rxMode.textContent='DTMF PACKET OK'; } catch(_) {}
+  if (decoder && typeof decoder.onPacket==='function') {
+    Promise.resolve(decoder.onPacket(parsed.text, true, parsed.bytes)).catch(e=>{
+      try { addMsg('sys','✗ DTMF packet handler: '+e.message); } catch(_) {}
+    });
+  }
+});
+
+window.ACNET_DTMF = {
+  version:'DTMF-WEB-R1', toneMs:DTMF_TONE_MS, gapMs:DTMF_GAP_MS,
+  rawBps:DTMF_RAW_BPS, frequencies:{rows:DTMF_ROW_FREQS.slice(),cols:DTMF_COL_FREQS.slice()},
+  reset(){ACNET_DTMF_RX.reset();}, status(){return ACNET_DTMF_RX.status();},
+  protocolSelfTest(text='GET https://example.com HTTP/1.1\r\nHost: example.com\r\n\r\n') {
+    try {
+      const b=_dtmfFrameSymbols(text,37,false), parsed=_dtmfParseFrame(_dtmfDigitsToBytes(b.symbols.slice(DTMF_START.length,-DTMF_END.length)),false);
+      const bad=b.frame.slice(); bad[6]^=1; let crcRejected=false;
+      try{_dtmfParseFrame(bad,false);}catch(_){crcRejected=true;}
+      return {ok:parsed.text===text&&parsed.seq===37&&crcRejected,roundTrip:parsed.text===text,seq:parsed.seq,crcRejected,symbols:b.symbols.length,estimatedMs:_dtmfEstimateDurationMs(_ENC.encode(text).length)};
+    } catch(e) { return {ok:false,error:e.message}; }
+  },
+  pcmSelfTest(text='ACNET DTMF PCM TEST 0123456789') {
+    try {
+      const b=_dtmfFrameSymbols(text,91,false), pcm=_dtmfRenderSymbols(b.symbols,SR,0.24);
+      let got=null; const rx=new _ACNETDTMFReceiver(p=>{got=p;});
+      for(let p=0;p<pcm.length;p+=257) rx.push(pcm.subarray(p,Math.min(pcm.length,p+257)));
+      return {ok:!!got&&got.text===text,got:got&&got.text,samples:pcm.length,symbols:b.symbols.length,status:rx.status()};
+    } catch(e) { return {ok:false,error:e.message}; }
+  }
+};
+
 const decoder = {
   // [FIX 1] Hard mode gating flags
   enable4FSK: false,
@@ -5109,6 +5426,7 @@ const decoder = {
   enablePSK31: false, // legacy ID: TTY45 receiver
   enablePSK63: false, // legacy ID: TTY75 receiver
   enableTTY300: false, // high-rate 300-baud CP-AFSK receiver
+  enableDTMF: false, // 12-key telephone DTMF receiver
 
   get ring(){ return this._ring; },
   _ring: new Float32Array(NOMINAL_SR * 120),
@@ -5428,6 +5746,7 @@ const decoder = {
     this.enablePSK31 = mod === 'psk31';
     this.enablePSK63 = mod === 'psk63';
     this.enableTTY300 = mod === 'tty300';
+    this.enableDTMF = mod === 'dtmf';
 
     // FIX: Bounds check for ring buffer write
     if (RING_SIZE <= 0) {
@@ -5459,7 +5778,12 @@ const decoder = {
     let bestF = _acnetRxPreambleHz(), bestP = -Infinity;
     const mLen = Math.min(1024, chunk.length);
     const mOff = this.wp - mLen;
-    if (this.enablePSK31 || this.enablePSK63 || this.enableTTY300) {
+    if (this.enableDTMF) {
+      for (const f of DTMF_ALL_FREQS) {
+        const p = this.goertzel(mOff, mLen, f);
+        if (p > bestP) { bestP = p; bestF = f; }
+      }
+    } else if (this.enablePSK31 || this.enablePSK63 || this.enableTTY300) {
       // TTY is mark-idle; show whichever member of the 170 Hz pair is stronger.
       for (const f of _acnetRxTTYFreqs()) {
         const p = this.goertzel(mOff, mLen, f);
@@ -5476,6 +5800,14 @@ const decoder = {
       }
     }
     onSig(rms, bestF);
+
+    // DTMF owns its framing and timing. Feed the conditioned 44.1 kHz stream
+    // directly to the telephone-tone detector and bypass the FSK state machine.
+    if (this.enableDTMF) {
+      if (Date.now() < this.txMuteUntil || this.state === 'OFF') return;
+      ACNET_DTMF_RX.push(chunk);
+      return;
+    }
 
     // Unified TTY path — 45.45/75/300/450/600 baud asynchronous 170 Hz-shift CP-AFSK, independent of the packet FSK state machine.
     if (this.enablePSK31 || this.enablePSK63 || this.enableTTY300) {
@@ -9500,6 +9832,7 @@ const decoder = {
 
   _reset(full=false){
     if (typeof this._onReset === 'function') this._onReset();
+    if (typeof CFG !== 'undefined' && CFG && CFG.mod === 'dtmf') ACNET_DTMF_RX.reset();
     // Invalidate cached scan/lock Hann windows on reset so they
     // are rebuilt with the correct length on the next SCAN hop.
     this._scanHannWin     = null;
@@ -9662,8 +9995,9 @@ const decoder = {
     this._scanChunks = 0;
     this._resetTTYState(true);
     this._ttySearchPos = this.wp;
+    ACNET_DTMF_RX.reset();
   },
-  stop(){ this.state='OFF'; setLed(lRx,''); },
+  stop(){ this.state='OFF'; ACNET_DTMF_RX.reset(); setLed(lRx,''); },
 };
 
 let CFG = {
@@ -12786,7 +13120,12 @@ async function _transmitNow(text, addToChat=true) {
 
     let buf, duration;
 
-    if (CFG.mod === 'cyrinx') {
+    if (CFG.mod === 'dtmf') {
+      const result = encodeDTMF(text);
+      buf = result.buf;
+      duration = result.duration;
+      addMsg('sys', `☎ DTMF TX: ${result.bytes} framed bytes · ${result.symbols} keypad tones · ${duration.toFixed(1)}s`);
+    } else if (CFG.mod === 'cyrinx') {
       if (!window.ACNET_CYRINX) throw new Error('CYRINX backend unavailable');
       const result = window.ACNET_CYRINX.encodeText(text);
       const pcm = window.ACNET_CYRINX.resampleWaveForRate(result.wave, actx.sampleRate || 48000);
@@ -12884,6 +13223,14 @@ async function _transmitNow(text, addToChat=true) {
       decoder.state = 'SCAN';
       setBadge('scan');setSBadge('scan','CYRINX HOT RX');
       rxMode.textContent='CYRINX LISTENING';
+    }
+    if (CFG.mod === 'dtmf' && duplexActive) {
+      ACNET_DTMF_RX.reset();
+      decoder.txMuteUntil = Date.now() + Math.max(300, Math.min(700, CFG.echoGateMs || 500));
+      decoder._postDecodeGateUntil = decoder.txMuteUntil;
+      decoder.state = 'SCAN';
+      setBadge('scan'); setSBadge('scan','DTMF SCAN');
+      rxMode.textContent='DTMF LISTENING';
     }
     if (clientMode && _ttyUsesProtectedFrames(CFG.mod) && duplexActive && decoder && decoder.state !== 'OFF') {
       // Non-invasive hot handoff: retain the original detector, thresholds,
@@ -14352,7 +14699,9 @@ function processRelayRequest(text, crcOk) {
     return;
   }
 
-  const _cachedResp = getRelayCache(url);
+  // DTMF pages use a deliberately small text-only representation. Do not
+  // replay a larger HTML response cached while another modulation was active.
+  const _cachedResp = (CFG && CFG.mod === 'dtmf') ? null : getRelayCache(url);
   if (_cachedResp) {
     addMsg('sys', `♻ Relay cache hit: ${parsedUrl.hostname} · replaying ${_cachedResp.respText.length}B`);
     bStat.textContent = `♻ Replaying cached ${parsedUrl.hostname}…`;
@@ -14477,7 +14826,7 @@ function processRelayRequest(text, crcOk) {
       const body = await buildRelayBody(raw, ct, parsedUrl.hostname);
 
       const respText = buildRelayResponse(r.status, parsedUrl.hostname, body);
-      putRelayCache(url, parsedUrl.hostname, r.status, respText);
+      if (!(CFG && CFG.mod === 'dtmf')) putRelayCache(url, parsedUrl.hostname, r.status, respText);
       addMsg('sys', `✓ [RELAY-9] Built response: ${respText.length}B`);
       relayTxWarn(respText);
 
@@ -14791,6 +15140,7 @@ function _chunkAckDelayMs() {
   // post-TX / post-rearm settling. _chunkAckWindowMs() derives from this value, so
   // both diverse ACK-R4 copies still fit inside the corresponding relay ACK window.
   if (CFG && CFG.mod === 'cyrinx') return 2200 + compatPad;
+  if (CFG && CFG.mod === 'dtmf') return 1250 + compatPad;
   if (CFG && (_isTTYMode(CFG.mod))) {
     const b=_ttyBaudForMode('tty300'); return (b>=600?900:b>=450?1200:1600)+compatPad;
   }
@@ -14808,6 +15158,7 @@ function _chunkAckDelayMs() {
 function _ackRepeatCount() {
   const sr = Math.max(1, (CFG && CFG.symbolRate) || 10);
   if (CFG && CFG.mod === 'cyrinx') return 1;
+  if (CFG && CFG.mod === 'dtmf') return 1;
   if (CFG && _isTTYMode(CFG.mod)) return 2; // compact TTY ACK redundancy is shared by every slider speed
   if (!CFG || (CFG.mod !== '4fsk' && CFG.mod !== '2fsk')) return 2;
   // ACK/NAK frames are now short and guarded by TX de-dupe + hard-COLLECT flush.
@@ -14821,7 +15172,7 @@ function _ackRepeatCount() {
 // The relay strips everything after the first line on receipt so existing matching works.
 function _padAck(msg) {
   if (!/^\s*(ACK|NAK):/i.test(msg)) return msg;
-  if (CFG.mod === 'ggwave' || CFG.mod === 'cyrinx') {
+  if (CFG.mod === 'ggwave' || CFG.mod === 'cyrinx' || CFG.mod === 'dtmf') {
     return msg; // built-in PHY FEC — no repeat padding needed
   }
   const repeats = _ackRepeatCount();
@@ -16603,6 +16954,7 @@ function _relayLegacyBodyCap() {
   return 3000;
 }
 function _relayBodyCap() {
+  if (typeof CFG !== 'undefined' && CFG && CFG.mod === 'dtmf') return ACNET_DTMF_WEB_BODY_MAX;
   try {
     if (typeof _acnetChunkHamModeActive === 'function' && _acnetChunkHamModeActive()) {
       return ACNET_HAM_RESPONSE_CAP_BYTES;
@@ -17194,6 +17546,30 @@ async function buildRelayBody(raw, ct, hostname) {
     // Keep json as-is
   }
 
+  // Telephone DTMF is intentionally narrow. Convert pages to readable text,
+  // retain a short list of navigable links, and cap the result so the user can
+  // actually browse instead of waiting for a multi-hour HTML transfer.
+  if (CFG && CFG.mod === 'dtmf') {
+    let text;
+    if (ct.includes('html') || isActuallyHtml) {
+      text = _ham33HtmlToText(raw, hostname);
+      // Convert the extractor's readable link list into the lightweight
+      // markdown form already handled by ACNET's safe clickable-link renderer.
+      text = text
+        .replace(/^- (.+?) - ((?:https?:\/\/|\/)\S+)$/gm, '• [$1]($2)')
+        .replace(/^- ((?:https?:\/\/|\/)\S+)$/gm, '• [$1]($1)');
+    } else if (ct.includes('json') || isActuallyJson) {
+      try { text = JSON.stringify(JSON.parse(raw), null, 2); }
+      catch(_) { text = raw; }
+      text = _ham33NormalizeText(text);
+    } else {
+      text = _ham33NormalizeText(raw);
+    }
+    text = _ham33CapUtf8(text, Math.max(128, rawBudget - 4));
+    addMsg('sys', `☎ DTMF web: text-first response ${_ham33Utf8Len(text)}B/${rawBudget-4}B`);
+    return 'TXT:' + text;
+  }
+
   addMsg('sys', `📡 Relay: ${bpsEff}bps × ${targetSec}s ≈ ${timeBudgetBytes}B est, using cap=${rawBudget}B (chunked)`);
 
   let content;
@@ -17398,8 +17774,12 @@ function buildRelayResponse(status, hostname, body) {
 function relayTxWarn(respText) {
   const bytes = _ENC.encode(respText).length;
   const bpsEff = _effectivePayloadBps();
-  const txSecN = Math.round(bytes * 8 / bpsEff);
-  const warn = txSecN > 120 ? ` ⚠ very long — lower symbol rate` : txSecN > 60 ? ` ℹ long TX` : '';
+  const txSecN = (CFG && CFG.mod === 'dtmf')
+    ? Math.round(_dtmfEstimateDurationMs(bytes) / 1000)
+    : Math.round(bytes * 8 / bpsEff);
+  const warn = txSecN > 120
+    ? (CFG && CFG.mod === 'dtmf' ? ` ⚠ long telephone transfer — text is capped` : ` ⚠ very long — lower symbol rate`)
+    : txSecN > 60 ? ` ℹ long TX` : '';
   addMsg('sys', `📡 TX response ${bytes}B ~${txSecN}s${warn}`);
   return bytes;
 }
@@ -17444,6 +17824,7 @@ function _acnetChunkHamModeActive(){
 }
 function _adaptiveChunkSize() {
   const sr = Math.max(1, (CFG && CFG.symbolRate) || 10);
+  if (CFG && CFG.mod === 'dtmf') return 36;
   // FIX40/FIX41: outside HAM Mode, normal web/page fetches target 168B payload
   // chunks. In HAM Mode, all fetch/data payload chunks are capped to 100B.
   if (!_acnetChunkHamModeActive()) {
@@ -17494,6 +17875,7 @@ const CHK_ECHO_GATE_MS = 1000; // ms of mute after chunk TX ends — must be < C
 const CHK_ACK_ECHO_MS = 360;
 function _relayAckEchoGateMs() {
   const sr = Math.max(1, (CFG && CFG.symbolRate) || 10);
+  if (CFG && CFG.mod === 'dtmf') return 650;
   if (CFG && (_isTTYMode(CFG.mod))) {
     const b=_ttyBaudForMode('tty300'); return b>=600?320:b>=450?420:560;
   }
@@ -17565,6 +17947,7 @@ function _rearmRelayAckListen(soft = false) {
   // clear live-stream/header buffers there, otherwise we can throw away the short
   // ACK preamble we're trying to catch.
   if (!soft) {
+    if (CFG && CFG.mod === 'dtmf') ACNET_DTMF_RX.reset();
     decoder.sp = decoder.wp;
     // R14.1: generic SCAN reset did not clear the independent TTY byte/frame
     // parser. After a relay CHK TX that stale tail/FEC state could reject the
@@ -17629,6 +18012,13 @@ function _chunkAckWindowMs() {
     const frameMs = window.ACNET_CYRINX ? Math.ceil(window.ACNET_CYRINX.frameSamples / 48000 * 1000) : 650;
     return _chunkAckDelayMs() + Math.max(700, CFG.echoGateMs || 1000) + (frameMs * 2) + CYRINX_ACK_COPY_GAP_MS + 1900 + compatRelayWaitPadMs();
   }
+  if (CFG && CFG.mod === 'dtmf') {
+    const plainBytes = _ENC.encode('NAK:9999').length + _acnetByteLen(_acnetCurrentCallsignPrefix());
+    const ackBytes = (_cryptoEnabled && _cryptoKey)
+      ? 24 + 4*Math.ceil(plainBytes/3)
+      : plainBytes;
+    return _chunkAckDelayMs() + _dtmfEstimateDurationMs(ackBytes) + 3500 + compatRelayWaitPadMs();
+  }
   if (CFG && _ttyUsesProtectedFrames(CFG.mod)) {
     const baud=_ttyBaudForMode(CFG.mod);
     const ackPayload=_ENC.encode(_padAck('NAK:9999'));
@@ -17667,6 +18057,7 @@ function _interChunkGapMs() {
   const sr = Math.max(1, (CFG && CFG.symbolRate) || 10);
   const compatPad = Math.floor(compatRelayWaitPadMs() * 0.18);
   if (CFG && CFG.mod === 'cyrinx') return 650 + compatPad;
+  if (CFG && CFG.mod === 'dtmf') return 1100 + compatPad;
   if (CFG && (_isTTYMode(CFG.mod))) {
     const b=_ttyBaudForMode('tty300'); return (b>=600?700:b>=450?900:1150)+compatPad;
   }
@@ -17690,6 +18081,7 @@ const TTY_RELAY_POST_ACK_HOLD_MS = 2000;
 function _postAckSettleMs() {
   const sr = Math.max(1, (CFG && CFG.symbolRate) || 10);
   const compatPad = compatRelayWaitPadMs();
+  if (CFG && CFG.mod === 'dtmf') return 1700 + compatPad;
   if (CFG && (_isTTYMode(CFG.mod))) {
     // R17: after a valid TTY ACK is intercepted, keep the relay in RX/SCAN/COLLECT
     // and do not launch the next data chunk for at least two full seconds.  This
@@ -17849,6 +18241,9 @@ async function transmitChunked(respText, hostname, relayStatusFn) {
     const nonPayload = _acnetByteLen(_acnetCurrentCallsignPrefix()) + _acnetByteLen(header) + ACNET_FSK_FRAME_OVERHEAD_BYTES;
     const byteBudget = Number(capBytes || ACNET_AIR_TARGET_BYTES) - nonPayload;
     const airtimeBudget = _acnetAirtimePayloadBudget(nonPayload, ACNET_TX_BURST_TARGET_MS);
+    if (CFG && CFG.mod === 'dtmf') {
+      return Math.max(16, Math.min(36, byteBudget));
+    }
     // R12: CHK:0 is an acquisition anchor. Keep it near GET-request size so
     // the first reverse-direction packet does not require a long perfect lock.
     // Once ACK:0 establishes the turn, chunks 1..N return to the normal budget.
@@ -22476,7 +22871,7 @@ function drawOneSpectrum(ctx,canvas,an,isTx){
     const hz=(i/bins)*maxHz;
     let r=0,g=0,b=0;
     const near=(f,d)=>Math.abs(hz-f)<d;
-    const activeFreqs = _isTTYMode(CFG.mod) ? (isTx ? _acnetTxTTYFreqs() : _acnetRxTTYFreqs()) : (isTx ? _acnetTxDataFreqs() : _acnetRxDataFreqs());
+    const activeFreqs = CFG.mod==='dtmf' ? DTMF_ALL_FREQS : (_isTTYMode(CFG.mod) ? (isTx ? _acnetTxTTYFreqs() : _acnetRxTTYFreqs()) : (isTx ? _acnetTxDataFreqs() : _acnetRxDataFreqs()));
     // Dim bins that are barely above noise floor (SNR < 6 dB)
     const aboveNoise = n > noiseFloorN * 1.5;
     if(near(isTx?_acnetTxPreambleHz():_acnetRxPreambleHz(),85)){
@@ -22505,10 +22900,10 @@ function drawOneSpectrum(ctx,canvas,an,isTx){
   }
 
   ctx.setLineDash([2,4]); ctx.lineWidth=.6;
-  const specFreqs = _isTTYMode(CFG.mod) ? (isTx ? _acnetTxTTYFreqs() : _acnetRxTTYFreqs()) : (isTx ? _acnetTxDataFreqs() : _acnetRxDataFreqs());
-  const specLabels = _isTTYMode(CFG.mod) ? ['MARK 1','SPACE 0'] : (CFG.mod === '2fsk' ? ['0','1'] : ['00','01','10','11']);
+  const specFreqs = CFG.mod==='dtmf' ? DTMF_ALL_FREQS : (_isTTYMode(CFG.mod) ? (isTx ? _acnetTxTTYFreqs() : _acnetRxTTYFreqs()) : (isTx ? _acnetTxDataFreqs() : _acnetRxDataFreqs()));
+  const specLabels = CFG.mod==='dtmf' ? ['R1','R2','R3','R4','C1','C2','C3'] : (_isTTYMode(CFG.mod) ? ['MARK 1','SPACE 0'] : (CFG.mod === '2fsk' ? ['0','1'] : ['00','01','10','11']));
   const _preHz = isTx ? _acnetTxPreambleHz() : _acnetRxPreambleHz();
-  const preGuide = _isTTYMode(CFG.mod) ? [] : [[_preHz,`${Math.round(_preHz)}\nPRE`,'rgba(255,150,0,.4)']];
+  const preGuide = (_isTTYMode(CFG.mod) || CFG.mod==='dtmf') ? [] : [[_preHz,`${Math.round(_preHz)}\nPRE`,'rgba(255,150,0,.4)']];
   [...preGuide,...specFreqs.map((f,i)=>[f,`${f}\n${specLabels[i]}`,isTx?'rgba(255,100,60,.35)':'rgba(0,220,80,.35)'])].forEach(([f,lbl,col])=>{
     const x=(f/maxHz)*W;
     ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
@@ -22713,6 +23108,14 @@ if (sbShowBtn) {
 }
 
 function updateBadges(){
+  if (CFG.mod === 'dtmf') {
+    bMod.textContent = 'DTMF';
+    bBps.textContent = '~' + Math.round(DTMF_RAW_BPS) + ' bps';
+    ciRate.textContent = (1000/(DTMF_TONE_MS+DTMF_GAP_MS)).toFixed(1);
+    ciMod.textContent = 'DTMF PHONE'; ciBps.textContent = '~' + Math.round(DTMF_RAW_BPS);
+    const _thb = $('ttyHeritageBadge'); if (_thb) _thb.style.display = 'none';
+    return;
+  }
   if (CFG.mod === 'cyrinx') {
     const bps = _effectivePayloadBps('cyrinx');
     bMod.textContent = 'CYRINX';
@@ -22770,7 +23173,7 @@ updateSymbolRate();
 setSafeTimeout(updateSymbolRate, 50);
 setSafeTimeout(updateSymbolRate, 250);
 // Apply initial visibility based on default mod
-(function(){ const isTTY = _isTTYMode(CFG.mod); const isGib = CFG.mod==='ggwave'; const isCyr = CFG.mod==='cyrinx'; $('rowFskRate').style.display=(isTTY||isGib||isCyr)?'none':''; $('rowFskThr').style.display=(isTTY||isGib||isCyr)?'none':''; if($('rowTTYRate'))$('rowTTYRate').style.display=isTTY?'':'none'; if($('rowCyrinxInfo'))$('rowCyrinxInfo').style.display=isCyr?'':'none'; if($('rowGGwaveProto'))$('rowGGwaveProto').style.display=isGib?'':'none'; if($('rowGGwaveVol'))$('rowGGwaveVol').style.display=isGib?'':'none'; })();
+(function(){ const isTTY = _isTTYMode(CFG.mod); const isGib = CFG.mod==='ggwave'; const isCyr = CFG.mod==='cyrinx'; const isDTMF=CFG.mod==='dtmf'; $('rowFskRate').style.display=(isTTY||isGib||isCyr||isDTMF)?'none':''; $('rowFskThr').style.display=(isTTY||isGib||isCyr||isDTMF)?'none':''; if($('rowTTYRate'))$('rowTTYRate').style.display=isTTY?'':'none'; if($('rowCyrinxInfo'))$('rowCyrinxInfo').style.display=isCyr?'':'none'; if($('rowGGwaveProto'))$('rowGGwaveProto').style.display=isGib?'':'none'; if($('rowGGwaveVol'))$('rowGGwaveVol').style.display=isGib?'':'none'; })();
 const csThrEl = $('csThr'), csThrV = $('csThrV');
 function updateThr(){
   const v = parseInt(csThrEl.value); // 1=max sensitivity, 99=min sensitivity
@@ -22848,15 +23251,16 @@ if (csTTYRateEl) {
 $('csMod').addEventListener('change',()=>{
   const v = $('csMod').value;
   const prevMod = CFG.mod;
-  const allowed = ['4fsk', '2fsk', 'psk31', 'psk63', 'tty300', 'cyrinx', 'ggwave'];
+  const allowed = ['4fsk', '2fsk', 'dtmf', 'psk31', 'psk63', 'tty300', 'cyrinx', 'ggwave'];
   CFG.mod = allowed.includes(v) ? v : '4fsk';
   const isGGwave = CFG.mod === 'ggwave';
   const isCyrinx = CFG.mod === 'cyrinx';
+  const isDTMF = CFG.mod === 'dtmf';
   const isTTY = _isTTYMode(CFG.mod);
   if (isTTY) CFG.symbolRate = _ttyBaudForMode(CFG.mod);
-  else if (!isGGwave && !isCyrinx) CFG.symbolRate = Math.max(2, Math.min(100, parseInt($('csRate').value, 10) || 10));
-  if ($('rowFskRate')) $('rowFskRate').style.display = (isGGwave || isTTY || isCyrinx) ? 'none' : '';
-  if ($('rowFskThr'))  $('rowFskThr').style.display = (isGGwave || isTTY || isCyrinx) ? 'none' : '';
+  else if (!isGGwave && !isCyrinx && !isDTMF) CFG.symbolRate = Math.max(2, Math.min(100, parseInt($('csRate').value, 10) || 10));
+  if ($('rowFskRate')) $('rowFskRate').style.display = (isGGwave || isTTY || isCyrinx || isDTMF) ? 'none' : '';
+  if ($('rowFskThr'))  $('rowFskThr').style.display = (isGGwave || isTTY || isCyrinx || isDTMF) ? 'none' : '';
   if ($('rowTTYRate')) $('rowTTYRate').style.display = isTTY ? '' : 'none';
   if ($('rowCyrinxInfo')) $('rowCyrinxInfo').style.display = isCyrinx ? '' : 'none';
   if ($('rowGGwaveProto')) $('rowGGwaveProto').style.display = isGGwave ? '' : 'none';
@@ -22872,7 +23276,9 @@ $('csMod').addEventListener('change',()=>{
   }
   if (duplexActive) decoder._reset();
   if (window.ACNET_CYRINX) window.ACNET_CYRINX.reset();
+  ACNET_DTMF_RX.reset();
   if (duplexActive && isCyrinx) { setSBadge('scan','CYRINX SCAN'); rxMode.textContent='CYRINX SCANNING'; }
+  if (duplexActive && isDTMF) { setSBadge('scan','DTMF SCAN'); rxMode.textContent='DTMF LISTENING'; }
   updateBadges();
   if (typeof _acnetRefreshFreqCursors === 'function') _acnetRefreshFreqCursors();
   // ── FIX: Auto start/stop ggwave mic when switching to/from ggwave while duplex active ──
@@ -22884,6 +23290,7 @@ $('csMod').addEventListener('change',()=>{
     }
   }
   if (typeof mailRefreshComposeWireCounter === 'function') mailRefreshComposeWireCounter();
+  if (isDTMF) addMsg('sys', '☎ DTMF telephone mode: 12-key tones · ~25 raw bit/s · web pages are converted to compact text with links (1 KB cap)');
 });
 if ($('csGGwaveProto')) {
   $('csGGwaveProto').addEventListener('change', () => {
@@ -24550,8 +24957,10 @@ async function _startListen() {
       const freq = _zcFreq(buf.slice(0, Math.min(Math.floor(_dSR*0.05), buf.length)), _dSR);
       if (sigHz) sigHz.textContent = (freq>800&&freq<3000) ? Math.round(freq)+' Hz' : '\u2014 Hz';
       _scheduleProcBuf();
-      if (_dListening && _dAn === sessionAnalyser) {
-        sessionAnalyser.getFloatFrequencyData(fd); _drawSpec(fd);
+      if (_dListening && sessionAnalyser && _dAn === sessionAnalyser &&
+          typeof sessionAnalyser.getFloatFrequencyData === 'function') {
+        try { sessionAnalyser.getFloatFrequencyData(fd); _drawSpec(fd); }
+        catch (_) { /* analyser may be torn down by Stop between audio callbacks */ }
       }
     };
     _dListening = true; _dDecoding = false; _pdLineFracCarry = 0; _pdSamplePtr = 0; _dBuf = []; _dProcScheduled=false; _dProcRunning=false; _dFallbackAllowed=false; _dListenStartedAt=performance.now(); _pdResetRxTracking(false); _dInit();
@@ -30279,5 +30688,6 @@ window.ACNET_FIX4_LOGIN_INBOX = { version: 'fix4-login-inbox', built: '2026-07-0
 window.ACNET_2FSK_ADVANCED={version:'2FSK-ADV1',wireCompatible:true,tones:[1000,2000],bitOrder:'MSB-first',features:['per-tone equalizer','log-likelihood slicer','multi-window consensus','CRC-guided soft repair']};
 </script>
 <script type="application/json" id="acnet-sstv-video-ggwave-replacement">{"patch":"SSTV_VIDEO_GGWAVE_REPLACEMENT","source":"acnet_video_ggwave.html","target":"ACNET_2-4fsk_ggwave_amateur_radio(2).html","sstv_module":"ACNET v7.3-pd290-profix","mode":"PD290 VIS 94 800x616 YCbCr","scope":["SSTV CSS","SSTV panel markup","complete SSTV encoder/decoder module"],"source_sstv_sha256":"02d8cfa921636f807fecb1607adedcc90429ebeabf25dec5aeb5fdad41d23c77"}</script>
+<script type="application/json" id="acnet-dtmf-web-manifest">{"patch":"DTMF-WEB-R1","release":"ACNET V2.2","keypad":"12-key DTMF","rows_hz":[697,770,852,941],"columns_hz":[1209,1336,1477],"encoding":"octal 3-bit symbols","framing":"start/end + version + sequence + length + CRC-16/CCITT","tone_ms":70,"gap_ms":50,"raw_bps":25,"web":"existing Client/Relay browser with text-first pages and links","web_body_cap_bytes":1024,"chunk_payload_bytes":36,"pd290_analyser_teardown_guard":true}</script>
 </body>
 </html>
