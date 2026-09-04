@@ -7,8 +7,8 @@ Designed to work with terrible equipment and high end equipment with a reasonabl
 You have a friend somewhere that you can phone and he really needs internet? You have a loved one and you want to see each other? Now it's possible! 
 
 How to use:.
-1. Open ACNET.html with Microsoft Edge browser.
-2. Choose relay/client. (turn off wifi/cellular/bluetooth internet connectivity if you are a client)
+1. Open ACNET_V2.2.html with Microsoft Edge browser.
+2. Choose relay/client and choose the right modulation. (turn off wifi/cellular/bluetooth internet connectivity if you are a client)
 3. Accept microphone permission.
 4. Open Acnet on another machine and repeat from step 1.
 5. Make sure there is an input and a output to each machine.
